@@ -118,7 +118,7 @@ const LoginPage = () => {
         email: email.trim(),
         password,
         options: {
-          data: { full_name: fullName },
+          data: { full_name: fullName, condo_identifier: condoSlug.trim().toLowerCase() },
           emailRedirectTo: window.location.origin,
         },
       });
