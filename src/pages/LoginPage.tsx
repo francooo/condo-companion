@@ -22,7 +22,46 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      // Validate condo exists (anon can read condos)
+      // Authenticate first
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (authError) throw authError;
+
+      // Fetch profile
+      const { data: profileData } = await supabase.rpc("get_my_profile");
+      const userProfile = profileData?.[0];
+
+      if (!userProfile) {
+        await supabase.auth.signOut();
+        toast.error("Perfil não encontrado. Contate o administrador.");
+        setLoading(false);
+        return;
+      }
+
+      if (!userProfile.active) {
+        await supabase.auth.signOut();
+        toast.error("Sua conta está desativada. Contate o síndico.");
+        setLoading(false);
+        return;
+      }
+
+      // Superadmin doesn't need condo validation
+      if (userProfile.role === "superadmin") {
+        toast.success("Bem-vindo, Superadmin!");
+        navigate("/superadmin");
+        return;
+      }
+
+      // For admin/resident, validate condo slug
+      if (!condoSlug.trim()) {
+        await supabase.auth.signOut();
+        toast.error("Informe o identificador do condomínio.");
+        setLoading(false);
+        return;
+      }
+
       const { data: condo, error: condoError } = await supabase
         .from("condos")
         .select("id, name")
@@ -31,48 +70,22 @@ const LoginPage = () => {
 
       if (condoError) throw condoError;
       if (!condo) {
+        await supabase.auth.signOut();
         toast.error("Condomínio não encontrado. Verifique o identificador.");
         setLoading(false);
         return;
       }
 
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-
-      if (authError) throw authError;
-
-      // Check if user belongs to this condo
-      const { data: profileData } = await supabase.rpc("get_my_profile");
-      const profile = profileData?.[0];
-
-      if (!profile) {
-        await supabase.auth.signOut();
-        toast.error("Perfil não encontrado. Contate o administrador.");
-        setLoading(false);
-        return;
-      }
-
-      if (profile.condo_id !== condo.id) {
+      if (userProfile.condo_id !== condo.id) {
         await supabase.auth.signOut();
         toast.error("Você não pertence a este condomínio.");
         setLoading(false);
         return;
       }
 
-      if (!profile.active) {
-        await supabase.auth.signOut();
-        toast.error("Sua conta está desativada. Contate o síndico.");
-        setLoading(false);
-        return;
-      }
-
       toast.success(`Bem-vindo ao ${condo.name}!`);
 
-      if (profile.role === "superadmin") {
-        navigate("/superadmin");
-      } else if (profile.role === "admin") {
+      if (userProfile.role === "admin") {
         navigate("/admin");
       } else {
         navigate("/chat");
@@ -141,11 +154,11 @@ const LoginPage = () => {
               <Label htmlFor="condo">Identificação do Condomínio</Label>
               <Input
                 id="condo"
-                placeholder="ex: residencial-aurora"
+                placeholder="ex: residencial-aurora (opcional para superadmin)"
                 value={condoSlug}
                 onChange={(e) => setCondoSlug(e.target.value)}
-                required
               />
+              <p className="text-xs text-muted-foreground">Superadmins não precisam informar o condomínio.</p>
             </div>
 
             {isSignup && (
