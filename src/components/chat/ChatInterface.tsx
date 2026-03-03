@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Loader2, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import ChatMessage from "./ChatMessage";
 import { toast } from "sonner";
 
@@ -12,6 +13,7 @@ export interface Message {
 }
 
 const ChatInterface = () => {
+  const { profile, user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -23,7 +25,7 @@ const ChatInterface = () => {
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || !profile?.condo_id || !user) return;
 
     const userMsg: Message = { role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
@@ -32,15 +34,18 @@ const ChatInterface = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("ask-condo-agent", {
-        body: { question: text, history: messages },
+        body: { question: text, condo_id: profile.condo_id, user_id: user.id },
       });
 
       if (error) throw error;
 
-      setMessages((prev) => [...prev, { role: "assistant", content: data.answer || "Desculpe, não consegui gerar uma resposta." }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.answer || "Desculpe, não consegui gerar uma resposta." },
+      ]);
     } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao consultar o agente: " + (err.message || "Erro desconhecido"));
+      toast.error("Erro ao consultar o agente");
       setMessages((prev) => [...prev, { role: "assistant", content: "Desculpe, ocorreu um erro. Tente novamente." }]);
     } finally {
       setIsLoading(false);
@@ -49,7 +54,6 @@ const ChatInterface = () => {
 
   return (
     <div className="flex flex-1 flex-col">
-      {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto max-w-2xl space-y-4">
           {messages.length === 0 && (
@@ -59,7 +63,7 @@ const ChatInterface = () => {
               </div>
               <h2 className="mb-2 text-xl font-semibold">Olá! Sou o CondoAgent</h2>
               <p className="max-w-sm text-muted-foreground">
-                Pergunte sobre regras do condomínio, regulamentos ou informações financeiras.
+                Pergunte sobre regras do condomínio ou informações financeiras.
               </p>
             </div>
           )}
@@ -75,14 +79,13 @@ const ChatInterface = () => {
         </div>
       </div>
 
-      {/* Input area */}
       <div className="border-t border-border bg-card px-4 py-4">
         <form
           onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
           className="mx-auto flex max-w-2xl gap-2"
         >
           <Input
-            placeholder="Pergunte sobre regras ou finanças do condomínio..."
+            placeholder="Pergunte sobre regras ou finanças..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={isLoading}

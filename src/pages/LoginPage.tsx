@@ -1,0 +1,220 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Building2, Loader2, LogIn } from "lucide-react";
+import { toast } from "sonner";
+
+const LoginPage = () => {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [condoSlug, setCondoSlug] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isSignup, setIsSignup] = useState(false);
+  const [fullName, setFullName] = useState("");
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      // Validate condo exists (anon can read condos)
+      const { data: condo, error: condoError } = await supabase
+        .from("condos")
+        .select("id, name")
+        .eq("identifier", condoSlug.trim().toLowerCase())
+        .maybeSingle();
+
+      if (condoError) throw condoError;
+      if (!condo) {
+        toast.error("Condomínio não encontrado. Verifique o identificador.");
+        setLoading(false);
+        return;
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (authError) throw authError;
+
+      // Check if user belongs to this condo
+      const { data: profileData } = await supabase.rpc("get_my_profile");
+      const profile = profileData?.[0];
+
+      if (!profile) {
+        await supabase.auth.signOut();
+        toast.error("Perfil não encontrado. Contate o administrador.");
+        setLoading(false);
+        return;
+      }
+
+      if (profile.condo_id !== condo.id) {
+        await supabase.auth.signOut();
+        toast.error("Você não pertence a este condomínio.");
+        setLoading(false);
+        return;
+      }
+
+      if (!profile.active) {
+        await supabase.auth.signOut();
+        toast.error("Sua conta está desativada. Contate o síndico.");
+        setLoading(false);
+        return;
+      }
+
+      toast.success(`Bem-vindo ao ${condo.name}!`);
+
+      if (profile.role === "superadmin") {
+        navigate("/superadmin");
+      } else if (profile.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/chat");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao fazer login");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { data: condo } = await supabase
+        .from("condos")
+        .select("id")
+        .eq("identifier", condoSlug.trim().toLowerCase())
+        .maybeSingle();
+
+      if (!condo) {
+        toast.error("Condomínio não encontrado.");
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { full_name: fullName },
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success("Conta criada! Verifique seu e-mail para confirmar o cadastro.");
+      setIsSignup(false);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao cadastrar");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-navy px-4">
+      <Card className="w-full max-w-md border-border bg-card">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-gold/10">
+            <Building2 className="h-8 w-8 text-gold" />
+          </div>
+          <CardTitle className="text-2xl font-bold">
+            Condo<span className="text-gold">Agent</span>
+          </CardTitle>
+          <CardDescription>
+            {isSignup ? "Crie sua conta" : "Acesse seu condomínio"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={isSignup ? handleSignup : handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="condo">Identificação do Condomínio</Label>
+              <Input
+                id="condo"
+                placeholder="ex: residencial-aurora"
+                value={condoSlug}
+                onChange={(e) => setCondoSlug(e.target.value)}
+                required
+              />
+            </div>
+
+            {isSignup && (
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Nome Completo</Label>
+                <Input
+                  id="fullName"
+                  placeholder="Seu nome completo"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-gold text-gold-foreground hover:bg-gold/90"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogIn className="mr-2 h-4 w-4" />
+              )}
+              {isSignup ? "Cadastrar" : "Entrar"}
+            </Button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setIsSignup(!isSignup)}
+                className="text-sm text-muted-foreground hover:text-gold transition-colors"
+              >
+                {isSignup
+                  ? "Já tem conta? Faça login"
+                  : "Não tem conta? Cadastre-se"}
+              </button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default LoginPage;
