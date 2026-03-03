@@ -56,14 +56,27 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { question, history } = await req.json();
+    const { question, condo_id, user_id } = await req.json();
     if (!question) throw new Error("Question is required");
+    if (!condo_id) throw new Error("condo_id is required");
+    if (!user_id) throw new Error("user_id is required");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Step 1: Intent classification
+    // Validate user belongs to the condo
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("condo_id, role, active")
+      .eq("id", user_id)
+      .single();
+
+    if (profileError || !profile) throw new Error("Perfil não encontrado");
+    if (!profile.active) throw new Error("Conta desativada");
+    if (profile.condo_id !== condo_id) throw new Error("Acesso negado: usuário não pertence a este condomínio");
+
+    // Intent classification
     const classificationPrompt = `Classifique a seguinte pergunta de um morador de condomínio em uma das duas categorias:
 - "regras" — se a pergunta é sobre regras, regulamentos, convivência, normas do condomínio
 - "financeiro" — se a pergunta é sobre finanças, gastos, receitas, prestação de contas, valores, despesas
@@ -78,8 +91,6 @@ Pergunta: "${question}"`;
     let answer: string;
 
     if (intent.includes("financeiro")) {
-      // Path B: Financial query
-      // Extract query parameters from question
       const extractPrompt = `Analise a seguinte pergunta sobre finanças de um condomínio e extraia os filtros em JSON:
 {
   "category": "string ou null",
@@ -101,19 +112,15 @@ Pergunta: "${question}"`;
         console.log("Could not parse filters, using fallback");
       }
 
-      // Build query
       let query = supabase
         .from("financial_records")
         .select("*")
+        .eq("condo_id", condo_id)
         .order("date", { ascending: false })
         .limit(50);
 
-      if (filters.category) {
-        query = query.ilike("category", `%${filters.category}%`);
-      }
-      if (filters.type === "income" || filters.type === "expense") {
-        query = query.eq("type", filters.type);
-      }
+      if (filters.category) query = query.ilike("category", `%${filters.category}%`);
+      if (filters.type === "income" || filters.type === "expense") query = query.eq("type", filters.type);
       if (filters.months) {
         const d = new Date();
         d.setMonth(d.getMonth() - parseInt(filters.months));
@@ -139,16 +146,16 @@ ${(records || []).map(r => `${r.date} | ${r.category} | ${r.description} | R$ ${
 
       answer = await geminiChat(
         `Pergunta do morador: "${question}"\n\n${financialContext}\n\nResponda a pergunta baseado EXCLUSIVAMENTE nos dados acima. Use formatação Markdown. Mostre valores em reais (R$). Nunca invente dados.`,
-        "Você é o CondoAgent, assistente financeiro de um condomínio. Responda de forma clara e precisa baseado nos dados fornecidos. Use tabelas Markdown quando apropriado."
+        "Você é o CondoAgent, assistente financeiro de um condomínio. Responda de forma clara e precisa baseado nos dados fornecidos."
       );
     } else {
-      // Path A: Rules/RAG
       const embedding = await generateEmbedding(question);
 
       const { data: matches, error: matchError } = await supabase.rpc("match_knowledge_base", {
         query_embedding: JSON.stringify(embedding),
         match_threshold: 0.3,
         match_count: 5,
+        filter_condo_id: condo_id,
       });
 
       if (matchError) {
@@ -157,7 +164,7 @@ ${(records || []).map(r => `${r.date} | ${r.category} | ${r.description} | R$ ${
       }
 
       if (!matches || matches.length === 0) {
-        answer = "Não encontrei informações relevantes na base de conhecimento do condomínio sobre essa pergunta. Verifique se os documentos de regras foram carregados pelo síndico.";
+        answer = "Não encontrei informações relevantes na base de conhecimento do seu condomínio sobre essa pergunta.";
       } else {
         const context = matches
           .map((m: any, i: number) => `[Trecho ${i + 1} - Similaridade: ${(m.similarity * 100).toFixed(1)}%]\n${m.content}`)
