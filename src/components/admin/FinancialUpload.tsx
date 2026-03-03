@@ -47,7 +47,7 @@ const FinancialUpload = () => {
       const records = result.data.map((row) => ({
         date: row.Data,
         category: row.Categoria,
-        description: row["Descrição"] || row.Descricao || "",
+        description: row["Descrição"] || (row as any).Descricao || "",
         amount: parseFloat(row.Valor?.replace(",", ".") || "0"),
         type: row.Tipo?.toLowerCase() === "receita" || row.Tipo?.toLowerCase() === "income" ? "income" : "expense",
       }));

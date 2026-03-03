@@ -1,1 +1,7 @@
 project_id = "aqqhibvwrgwtiyuxxznf"
+
+[functions.ask-condo-agent]
+verify_jwt = false
+
+[functions.process-embeddings]
+verify_jwt = false

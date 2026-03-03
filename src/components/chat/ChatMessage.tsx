@@ -1,3 +1,4 @@
+// @ts-ignore
 import ReactMarkdown from "react-markdown";
 import { Building2, User } from "lucide-react";
 import type { Message } from "./ChatInterface";
