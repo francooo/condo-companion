@@ -10,7 +10,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { chunks, metadata } = await req.json();
+    const { chunks, metadata, condo_id } = await req.json();
+    if (!condo_id) throw new Error("condo_id é obrigatório");
+
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
@@ -21,7 +23,6 @@ serve(async (req) => {
     const records = [];
 
     for (const chunk of chunks) {
-      // Generate embedding via Gemini text-embedding-004
       const embResponse = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GEMINI_API_KEY}`,
         {
@@ -47,10 +48,10 @@ serve(async (req) => {
         content: chunk,
         metadata,
         embedding: JSON.stringify(embedding),
+        condo_id,
       });
     }
 
-    // Batch insert
     const { error } = await supabase.from("knowledge_base").insert(records);
     if (error) throw error;
 
