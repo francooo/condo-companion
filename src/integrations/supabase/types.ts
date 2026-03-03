@@ -14,10 +14,32 @@ export type Database = {
   }
   public: {
     Tables: {
+      condos: {
+        Row: {
+          created_at: string | null
+          id: string
+          identifier: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          identifier: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          identifier?: string
+          name?: string
+        }
+        Relationships: []
+      }
       financial_records: {
         Row: {
           amount: number
           category: string
+          condo_id: string | null
           created_at: string | null
           date: string
           description: string | null
@@ -27,6 +49,7 @@ export type Database = {
         Insert: {
           amount?: number
           category: string
+          condo_id?: string | null
           created_at?: string | null
           date: string
           description?: string | null
@@ -36,16 +59,26 @@ export type Database = {
         Update: {
           amount?: number
           category?: string
+          condo_id?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
           id?: string
           type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "financial_records_condo_id_fkey"
+            columns: ["condo_id"]
+            isOneToOne: false
+            referencedRelation: "condos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       knowledge_base: {
         Row: {
+          condo_id: string | null
           content: string
           created_at: string | null
           embedding: string | null
@@ -53,6 +86,7 @@ export type Database = {
           metadata: Json | null
         }
         Insert: {
+          condo_id?: string | null
           content: string
           created_at?: string | null
           embedding?: string | null
@@ -60,32 +94,104 @@ export type Database = {
           metadata?: Json | null
         }
         Update: {
+          condo_id?: string | null
           content?: string
           created_at?: string | null
           embedding?: string | null
           id?: string
           metadata?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_condo_id_fkey"
+            columns: ["condo_id"]
+            isOneToOne: false
+            referencedRelation: "condos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          active: boolean | null
+          condo_id: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          role: string
+        }
+        Insert: {
+          active?: boolean | null
+          condo_id?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          role?: string
+        }
+        Update: {
+          active?: boolean | null
+          condo_id?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_condo_id_fkey"
+            columns: ["condo_id"]
+            isOneToOne: false
+            referencedRelation: "condos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      match_knowledge_base: {
-        Args: {
-          match_count?: number
-          match_threshold?: number
-          query_embedding: string
-        }
+      get_my_condo_id: { Args: never; Returns: string }
+      get_my_profile: {
+        Args: never
         Returns: {
-          content: string
+          active: boolean
+          condo_id: string
+          full_name: string
           id: string
-          metadata: Json
-          similarity: number
+          role: string
         }[]
       }
+      is_condo_admin: { Args: never; Returns: boolean }
+      is_superadmin: { Args: never; Returns: boolean }
+      match_knowledge_base:
+        | {
+            Args: {
+              filter_condo_id?: string
+              match_count?: number
+              match_threshold?: number
+              query_embedding: string
+            }
+            Returns: {
+              content: string
+              id: string
+              metadata: Json
+              similarity: number
+            }[]
+          }
+        | {
+            Args: {
+              match_count?: number
+              match_threshold?: number
+              query_embedding: string
+            }
+            Returns: {
+              content: string
+              id: string
+              metadata: Json
+              similarity: number
+            }[]
+          }
     }
     Enums: {
       [_ in never]: never
