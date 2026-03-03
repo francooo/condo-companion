@@ -154,11 +154,11 @@ const LoginPage = () => {
               <Label htmlFor="condo">Identificação do Condomínio</Label>
               <Input
                 id="condo"
-                placeholder="ex: residencial-aurora"
+                placeholder="ex: residencial-aurora (opcional para superadmin)"
                 value={condoSlug}
                 onChange={(e) => setCondoSlug(e.target.value)}
-                required
               />
+              <p className="text-xs text-muted-foreground">Superadmins não precisam informar o condomínio.</p>
             </div>
 
             {isSignup && (
