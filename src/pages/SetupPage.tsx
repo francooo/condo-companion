@@ -41,8 +41,8 @@ const SetupPage = () => {
         return;
       }
 
-      toast.success("Setup concluído! Redirecionando para o painel superadmin...");
-      navigate("/superadmin", { replace: true });
+      toast.success("Setup concluído! Entrando no painel superadmin...");
+      window.location.assign("/superadmin");
     } catch (err: any) {
       toast.error(err.message || "Erro ao criar superadmin");
     } finally {
