@@ -62,8 +62,7 @@ const LoginPage = () => {
         return;
       }
 
-      const { data: condo, error: condoError } = await supabase
-        .from("condos")
+      const { data: condo, error: condoError } = await (supabase.from as any)("condos")
         .select("id, name")
         .eq("identifier", condoSlug.trim().toLowerCase())
         .maybeSingle();
