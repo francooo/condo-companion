@@ -2,10 +2,19 @@ import { Link, useLocation } from "react-router-dom";
 import { Building2, MessageCircle, Settings, Shield, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Navbar = () => {
   const location = useLocation();
   const { profile, signOut, user } = useAuth();
+  const [condoName, setCondoName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!profile?.condo_id) { setCondoName(null); return; }
+    supabase.from("condos").select("name").eq("id", profile.condo_id).single()
+      .then(({ data }) => setCondoName(data?.name ?? null));
+  }, [profile?.condo_id]);
 
   const isActive = (path: string) => location.pathname === path;
 
