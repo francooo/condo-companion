@@ -32,8 +32,7 @@ const ResidentManagement = () => {
   }, [profile?.condo_id]);
 
   const fetchResidents = async () => {
-    const { data } = await supabase
-      .from("profiles")
+    const { data } = await (supabase.from as any)("profiles")
       .select("id, full_name, role, active, created_at")
       .eq("condo_id", profile!.condo_id!)
       .order("created_at", { ascending: false });
