@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
-
+import { Separator } from "@/components/ui/separator";
 const LoginPage = () => {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
