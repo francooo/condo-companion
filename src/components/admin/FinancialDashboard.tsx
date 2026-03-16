@@ -36,7 +36,7 @@ const FinancialDashboard = () => {
   const fetchCategories = async () => {
     const { data } = await (supabase.from as any)("financial_records").select("category");
     if (data) {
-      const unique = [...new Set(data.map((r) => r.category))].sort();
+      const unique = [...new Set((data as any[]).map((r: any) => r.category))].sort() as string[];
       setCategories(unique);
     }
   };
