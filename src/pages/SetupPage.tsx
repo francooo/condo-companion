@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Loader2, CheckCircle } from "lucide-react";
+import { Shield, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const SetupPage = () => {
@@ -14,47 +14,41 @@ const SetupPage = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
 
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const cleanEmail = email.trim();
+      const cleanName = fullName.trim();
+
       const { data, error } = await supabase.functions.invoke("setup-superadmin", {
-        body: { email: email.trim(), password, full_name: fullName.trim() },
+        body: { email: cleanEmail, password, full_name: cleanName },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success("Superadmin criado com sucesso!");
-      setDone(true);
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+
+      if (signInError) {
+        toast.success("Superadmin criado! Faça login para continuar.");
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      toast.success("Setup concluído! Redirecionando para o painel superadmin...");
+      navigate("/superadmin", { replace: true });
     } catch (err: any) {
       toast.error(err.message || "Erro ao criar superadmin");
     } finally {
       setLoading(false);
     }
   };
-
-  if (done) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-navy px-4">
-        <Card className="w-full max-w-md border-border bg-card">
-          <CardContent className="flex flex-col items-center py-10 gap-4">
-            <CheckCircle className="h-12 w-12 text-green-500" />
-            <h2 className="text-xl font-bold">Setup concluído!</h2>
-            <p className="text-muted-foreground text-center">
-              Agora faça login com as credenciais do superadmin.
-            </p>
-            <Button onClick={() => navigate("/login")} className="bg-gold text-gold-foreground hover:bg-gold/90">
-              Ir para Login
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-navy px-4">
