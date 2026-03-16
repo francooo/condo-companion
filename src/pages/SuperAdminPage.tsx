@@ -39,7 +39,7 @@ const SuperAdminPage = () => {
   }, []);
 
   const fetchCondos = async () => {
-    const { data } = await supabase.from("condos").select("*").order("created_at", { ascending: false });
+    const { data } = await (supabase.from as any)("condos").select("*").order("created_at", { ascending: false });
     setCondos((data as Condo[]) || []);
     setLoading(false);
   };
