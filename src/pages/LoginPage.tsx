@@ -11,12 +11,21 @@ import { toast } from "sonner";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { user, profile, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [condoSlug, setCondoSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
   const [fullName, setFullName] = useState("");
+
+  useEffect(() => {
+    if (authLoading || !user || !profile) return;
+
+    if (profile.role === "superadmin") navigate("/superadmin", { replace: true });
+    else if (profile.role === "admin") navigate("/admin", { replace: true });
+    else navigate("/chat", { replace: true });
+  }, [authLoading, user, profile, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
