@@ -14,13 +14,167 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      condos: {
+        Row: {
+          created_at: string
+          id: string
+          identifier: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          identifier: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          identifier?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      financial_records: {
+        Row: {
+          amount: number
+          category: string
+          condo_id: string
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          type: string
+        }
+        Insert: {
+          amount?: number
+          category: string
+          condo_id: string
+          created_at?: string
+          date: string
+          description?: string | null
+          id?: string
+          type?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          condo_id?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_records_condo_id_fkey"
+            columns: ["condo_id"]
+            isOneToOne: false
+            referencedRelation: "condos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_base: {
+        Row: {
+          condo_id: string
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          condo_id: string
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          condo_id?: string
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_condo_id_fkey"
+            columns: ["condo_id"]
+            isOneToOne: false
+            referencedRelation: "condos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          active: boolean
+          condo_id: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          role: string
+        }
+        Insert: {
+          active?: boolean
+          condo_id?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          role?: string
+        }
+        Update: {
+          active?: boolean
+          condo_id?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_condo_id_fkey"
+            columns: ["condo_id"]
+            isOneToOne: false
+            referencedRelation: "condos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_my_profile: {
+        Args: never
+        Returns: {
+          active: boolean
+          condo_id: string
+          full_name: string
+          id: string
+          role: string
+        }[]
+      }
+      match_knowledge_base: {
+        Args: {
+          filter_condo_id?: string
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          id: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

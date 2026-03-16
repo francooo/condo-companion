@@ -1,1 +1,10 @@
 project_id = "dzuclmbfdhnwtdppwcul"
+
+[functions.ask-condo-agent]
+verify_jwt = false
+
+[functions.process-embeddings]
+verify_jwt = false
+
+[functions.manage-users]
+verify_jwt = false

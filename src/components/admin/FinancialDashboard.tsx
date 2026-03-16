@@ -34,17 +34,16 @@ const FinancialDashboard = () => {
   }, [page, categoryFilter]);
 
   const fetchCategories = async () => {
-    const { data } = await supabase.from("financial_records").select("category");
+    const { data } = await (supabase.from as any)("financial_records").select("category");
     if (data) {
-      const unique = [...new Set(data.map((r) => r.category))].sort();
+      const unique = [...new Set((data as any[]).map((r: any) => r.category))].sort() as string[];
       setCategories(unique);
     }
   };
 
   const fetchRecords = async () => {
     setLoading(true);
-    let query = supabase
-      .from("financial_records")
+    let query = (supabase.from as any)("financial_records")
       .select("*", { count: "exact" })
       .order("date", { ascending: false })
       .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);

@@ -6,32 +6,38 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")!;
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 
-async function geminiChat(prompt: string, systemInstruction?: string): Promise<string> {
-  const contents = [{ role: "user", parts: [{ text: prompt }] }];
-  const body: any = { contents };
+async function groqChat(prompt: string, systemInstruction?: string): Promise<string> {
+  const messages: any[] = [];
   if (systemInstruction) {
-    body.systemInstruction = { parts: [{ text: systemInstruction }] };
+    messages.push({ role: "system", content: systemInstruction });
   }
+  messages.push({ role: "user", content: prompt });
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }
-  );
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages,
+      temperature: 0.3,
+      max_tokens: 2048,
+    }),
+  });
 
   if (!res.ok) {
     const err = await res.text();
-    console.error("Gemini error:", err);
-    throw new Error("Gemini API error");
+    console.error("GROQ error:", err);
+    throw new Error("GROQ API error");
   }
 
   const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  return data.choices?.[0]?.message?.content || "";
 }
 
 async function generateEmbedding(text: string): Promise<number[]> {
@@ -76,7 +82,7 @@ serve(async (req) => {
     if (!profile.active) throw new Error("Conta desativada");
     if (profile.condo_id !== condo_id) throw new Error("Acesso negado: usuário não pertence a este condomínio");
 
-    // Intent classification
+    // Intent classification using GROQ
     const classificationPrompt = `Classifique a seguinte pergunta de um morador de condomínio em uma das duas categorias:
 - "regras" — se a pergunta é sobre regras, regulamentos, convivência, normas do condomínio
 - "financeiro" — se a pergunta é sobre finanças, gastos, receitas, prestação de contas, valores, despesas
@@ -85,7 +91,7 @@ Responda APENAS com a palavra "regras" ou "financeiro", sem explicação adicion
 
 Pergunta: "${question}"`;
 
-    const intent = (await geminiChat(classificationPrompt)).trim().toLowerCase();
+    const intent = (await groqChat(classificationPrompt)).trim().toLowerCase();
     console.log("Intent classified as:", intent);
 
     let answer: string;
@@ -103,7 +109,7 @@ Responda APENAS com o JSON, sem explicação.
 
 Pergunta: "${question}"`;
 
-      const filtersRaw = await geminiChat(extractPrompt);
+      const filtersRaw = await groqChat(extractPrompt);
       let filters: any = {};
       try {
         const jsonMatch = filtersRaw.match(/\{[\s\S]*\}/);
@@ -133,8 +139,8 @@ Pergunta: "${question}"`;
       const { data: records, error: dbError } = await query;
       if (dbError) throw dbError;
 
-      const totalIncome = (records || []).filter(r => r.type === "income").reduce((s, r) => s + Number(r.amount), 0);
-      const totalExpense = (records || []).filter(r => r.type === "expense").reduce((s, r) => s + Number(r.amount), 0);
+      const totalIncome = (records || []).filter((r: any) => r.type === "income").reduce((s: number, r: any) => s + Number(r.amount), 0);
+      const totalExpense = (records || []).filter((r: any) => r.type === "expense").reduce((s: number, r: any) => s + Number(r.amount), 0);
 
       const financialContext = `Dados financeiros encontrados (${records?.length || 0} registros):
 Total receitas: R$ ${totalIncome.toFixed(2)}
@@ -142,13 +148,14 @@ Total despesas: R$ ${totalExpense.toFixed(2)}
 Saldo: R$ ${(totalIncome - totalExpense).toFixed(2)}
 
 Detalhes:
-${(records || []).map(r => `${r.date} | ${r.category} | ${r.description} | R$ ${Number(r.amount).toFixed(2)} | ${r.type === "income" ? "Receita" : "Despesa"}`).join("\n")}`;
+${(records || []).map((r: any) => `${r.date} | ${r.category} | ${r.description} | R$ ${Number(r.amount).toFixed(2)} | ${r.type === "income" ? "Receita" : "Despesa"}`).join("\n")}`;
 
-      answer = await geminiChat(
+      answer = await groqChat(
         `Pergunta do morador: "${question}"\n\n${financialContext}\n\nResponda a pergunta baseado EXCLUSIVAMENTE nos dados acima. Use formatação Markdown. Mostre valores em reais (R$). Nunca invente dados.`,
         "Você é o CondoAgent, assistente financeiro de um condomínio. Responda de forma clara e precisa baseado nos dados fornecidos."
       );
     } else {
+      // Use Gemini for embeddings, GROQ for chat
       const embedding = await generateEmbedding(question);
 
       const { data: matches, error: matchError } = await supabase.rpc("match_knowledge_base", {
@@ -170,7 +177,7 @@ ${(records || []).map(r => `${r.date} | ${r.category} | ${r.description} | R$ ${
           .map((m: any, i: number) => `[Trecho ${i + 1} - Similaridade: ${(m.similarity * 100).toFixed(1)}%]\n${m.content}`)
           .join("\n\n");
 
-        answer = await geminiChat(
+        answer = await groqChat(
           `Pergunta do morador: "${question}"\n\nContexto dos documentos do condomínio:\n${context}\n\nResponda a pergunta baseado EXCLUSIVAMENTE no contexto acima. Se a informação não estiver no contexto, diga que não encontrou a informação. Use formatação Markdown.`,
           "Você é o CondoAgent, assistente de um condomínio. Responda de forma clara, educada e precisa baseado nos documentos fornecidos."
         );

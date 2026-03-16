@@ -30,8 +30,8 @@ const LoginPage = () => {
       if (authError) throw authError;
 
       // Fetch profile
-      const { data: profileData } = await supabase.rpc("get_my_profile");
-      const userProfile = profileData?.[0];
+      const { data: profileData } = await (supabase.rpc as any)("get_my_profile");
+      const userProfile = (profileData as any[])?.[0];
 
       if (!userProfile) {
         await supabase.auth.signOut();
@@ -62,8 +62,7 @@ const LoginPage = () => {
         return;
       }
 
-      const { data: condo, error: condoError } = await supabase
-        .from("condos")
+      const { data: condo, error: condoError } = await (supabase.from as any)("condos")
         .select("id, name")
         .eq("identifier", condoSlug.trim().toLowerCase())
         .maybeSingle();
@@ -102,8 +101,7 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const { data: condo } = await supabase
-        .from("condos")
+      const { data: condo } = await (supabase.from as any)("condos")
         .select("id")
         .eq("identifier", condoSlug.trim().toLowerCase())
         .maybeSingle();
