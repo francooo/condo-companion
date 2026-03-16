@@ -210,7 +210,7 @@ const LoginPage = () => {
               {isSignup ? "Cadastrar" : "Entrar"}
             </Button>
 
-            <div className="text-center">
+            <div className="flex flex-col items-center gap-1">
               <button
                 type="button"
                 onClick={() => setIsSignup(!isSignup)}
@@ -219,6 +219,13 @@ const LoginPage = () => {
                 {isSignup
                   ? "Já tem conta? Faça login"
                   : "Não tem conta? Cadastre-se"}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/setup")}
+                className="text-xs text-muted-foreground/60 hover:text-gold transition-colors"
+              >
+                Primeiro acesso? Configurar sistema
               </button>
             </div>
           </form>
