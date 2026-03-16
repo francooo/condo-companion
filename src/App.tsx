@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Navbar from "./components/layout/Navbar";
 import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
+import SetupPage from "./pages/SetupPage";
 import ChatPage from "./pages/ChatPage";
 import AdminPage from "./pages/AdminPage";
 import SuperAdminPage from "./pages/SuperAdminPage";
@@ -27,6 +28,16 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode;
   }
 
   if (!user) return <Navigate to="/login" replace />;
+
+  // Wait for profile to load before checking roles
+  if (allowedRoles && !profile) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-navy">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      </div>
+    );
+  }
+
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
     return <Navigate to="/" replace />;
   }
@@ -40,6 +51,7 @@ const AppRoutes = () => (
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/setup" element={<SetupPage />} />
       <Route
         path="/chat"
         element={
