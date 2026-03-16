@@ -26,6 +26,9 @@ const Navbar = () => {
         <Link to="/" className="flex items-center gap-2">
           <Building2 className="h-7 w-7 text-gold" />
           <span className="text-xl font-bold tracking-tight">CondoAgent</span>
+          {condoName && (
+            <span className="ml-1 text-sm font-medium text-muted-foreground/80">| {condoName}</span>
+          )}
         </Link>
         <nav className="flex items-center gap-1">
           {(profile?.role === "resident" || profile?.role === "admin") && (
