@@ -30,8 +30,8 @@ const LoginPage = () => {
       if (authError) throw authError;
 
       // Fetch profile
-      const { data: profileData } = await supabase.rpc("get_my_profile");
-      const userProfile = profileData?.[0];
+      const { data: profileData } = await (supabase.rpc as any)("get_my_profile");
+      const userProfile = (profileData as any[])?.[0];
 
       if (!userProfile) {
         await supabase.auth.signOut();
