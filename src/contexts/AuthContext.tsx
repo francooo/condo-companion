@@ -36,43 +36,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (): Promise<Profile | null> => {
     const { data } = await (supabase.rpc as any)("get_my_profile");
-    if (data && (data as any[]).length > 0) {
-      setProfile((data as any[])[0] as Profile);
-    } else {
+    const rows = (data as any[]) || [];
+    return rows.length > 0 ? (rows[0] as Profile) : null;
+  };
+
+  const applySession = async (nextSession: Session | null) => {
+    setSession(nextSession);
+    setUser(nextSession?.user ?? null);
+
+    if (!nextSession?.user) {
       setProfile(null);
+      setLoading(false);
+      return;
     }
+
+    const nextProfile = await fetchProfile();
+    setProfile(nextProfile);
+    setLoading(false);
   };
 
   const refreshProfile = async () => {
-    if (user) await fetchProfile(user.id);
+    if (!user) {
+      setProfile(null);
+      return;
+    }
+    const nextProfile = await fetchProfile();
+    setProfile(nextProfile);
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id), 0);
-        } else {
-          setProfile(null);
-        }
-        setLoading(false);
-      }
-    );
+    let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
-      setLoading(false);
+    const safeApplySession = async (nextSession: Session | null) => {
+      if (!mounted) return;
+      await applySession(nextSession);
+    };
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void safeApplySession(nextSession);
     });
 
-    return () => subscription.unsubscribe();
+    void supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      void safeApplySession(currentSession);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
