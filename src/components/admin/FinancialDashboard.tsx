@@ -43,8 +43,7 @@ const FinancialDashboard = () => {
 
   const fetchRecords = async () => {
     setLoading(true);
-    let query = supabase
-      .from("financial_records")
+    let query = (supabase.from as any)("financial_records")
       .select("*", { count: "exact" })
       .order("date", { ascending: false })
       .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);

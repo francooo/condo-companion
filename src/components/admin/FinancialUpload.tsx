@@ -51,7 +51,7 @@ const FinancialUpload = () => {
         condo_id: profile.condo_id,
       }));
 
-      const { error } = await supabase.from("financial_records").insert(records);
+      const { error } = await (supabase.from as any)("financial_records").insert(records);
       if (error) throw error;
 
       setUploadedCount(records.length);

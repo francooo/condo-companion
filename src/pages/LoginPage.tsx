@@ -101,8 +101,7 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const { data: condo } = await supabase
-        .from("condos")
+      const { data: condo } = await (supabase.from as any)("condos")
         .select("id")
         .eq("identifier", condoSlug.trim().toLowerCase())
         .maybeSingle();

@@ -48,7 +48,7 @@ const SuperAdminPage = () => {
     e.preventDefault();
     setCreating(true);
     try {
-      const { error } = await supabase.from("condos").insert({
+      const { error } = await (supabase.from as any)("condos").insert({
         name: condoName.trim(),
         identifier: condoSlug.trim().toLowerCase().replace(/\s+/g, "-"),
       });

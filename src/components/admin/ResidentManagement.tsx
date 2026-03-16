@@ -68,8 +68,7 @@ const ResidentManagement = () => {
   };
 
   const toggleActive = async (residentId: string, active: boolean) => {
-    const { error } = await supabase
-      .from("profiles")
+    const { error } = await (supabase.from as any)("profiles")
       .update({ active })
       .eq("id", residentId);
     if (error) {
