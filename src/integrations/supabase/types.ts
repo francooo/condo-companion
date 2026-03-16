@@ -151,6 +151,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_condo_id: { Args: never; Returns: string }
       get_my_profile: {
         Args: never
         Returns: {
@@ -161,6 +162,8 @@ export type Database = {
           role: string
         }[]
       }
+      get_my_role: { Args: never; Returns: string }
+      is_superadmin: { Args: never; Returns: boolean }
       match_knowledge_base: {
         Args: {
           filter_condo_id?: string
