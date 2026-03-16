@@ -23,6 +23,7 @@ const LoginPage = () => {
     if (authLoading || !user || !profile) return;
 
     if (profile.role === "superadmin") navigate("/superadmin", { replace: true });
+    else if (!profile.condo_id) navigate("/select-condo", { replace: true });
     else if (profile.role === "admin") navigate("/admin", { replace: true });
     else navigate("/chat", { replace: true });
   }, [authLoading, user, profile, navigate]);
