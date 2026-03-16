@@ -14,6 +14,7 @@ const Index = () => {
       return;
     }
     if (profile?.role === "superadmin") navigate("/superadmin");
+    else if (!profile?.condo_id) navigate("/select-condo");
     else if (profile?.role === "admin") navigate("/admin");
     else navigate("/chat");
   }, [loading, user, profile, navigate]);

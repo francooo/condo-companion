@@ -11,6 +11,7 @@ import SetupPage from "./pages/SetupPage";
 import ChatPage from "./pages/ChatPage";
 import AdminPage from "./pages/AdminPage";
 import SuperAdminPage from "./pages/SuperAdminPage";
+import SelectCondoPage from "./pages/SelectCondoPage";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -52,6 +53,14 @@ const AppRoutes = () => (
       <Route path="/" element={<Index />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
+      <Route
+        path="/select-condo"
+        element={
+          <ProtectedRoute>
+            <SelectCondoPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/chat"
         element={
