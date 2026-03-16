@@ -54,6 +54,14 @@ const AppRoutes = () => (
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
       <Route
+        path="/select-condo"
+        element={
+          <ProtectedRoute>
+            <SelectCondoPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/chat"
         element={
           <ProtectedRoute allowedRoles={["resident", "admin"]}>

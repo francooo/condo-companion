@@ -235,9 +235,12 @@ const LoginPage = () => {
               className="w-full"
               disabled={loading}
               onClick={async () => {
+                const redirectUrl = condoSlug.trim()
+                  ? `${window.location.origin}/select-condo?condo=${encodeURIComponent(condoSlug.trim().toLowerCase())}`
+                  : window.location.origin;
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: "google",
-                  options: { redirectTo: window.location.origin },
+                  options: { redirectTo: redirectUrl },
                 });
                 if (error) toast.error(error.message);
               }}
