@@ -128,8 +128,8 @@ const SuperAdminPage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.endsWith(".txt") && file.type !== "text/plain") {
-      toast.error("Formato não suportado. Use TXT.");
+    if (!isAcceptedFile(file)) {
+      toast.error("Formato não suportado. Use TXT ou PDF.");
       return;
     }
 
