@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { isAcceptedFile, getTextFromFile } from "@/lib/pdf-utils";
 
 function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
   const words = text.split(/\s+/);
