@@ -37,7 +37,7 @@ const RulesUpload = () => {
     setUploadedCount(0);
 
     try {
-      const text = await file.text();
+      const text = await getTextFromFile(file);
       const chunks = chunkText(text);
       toast.info(`Processando ${chunks.length} trechos...`);
 
