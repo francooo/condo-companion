@@ -260,7 +260,7 @@ const SuperAdminPage = () => {
                             </p>
                             <Input
                               type="file"
-                              accept=".txt"
+                              accept=".txt,.pdf"
                               onChange={(e) => handleFileUpload(e, c.id)}
                               disabled={isUploading && uploadingCondoId === c.id}
                               className="cursor-pointer"
