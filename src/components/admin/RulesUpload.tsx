@@ -69,7 +69,7 @@ const RulesUpload = () => {
           Upload de Regras e Regimento
         </CardTitle>
         <CardDescription>
-          Faça upload de arquivos TXT com as regras do condomínio.
+          Faça upload de arquivos TXT ou PDF com as regras do condomínio.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
