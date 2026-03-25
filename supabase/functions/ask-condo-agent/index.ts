@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")!;
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 
 async function groqChat(prompt: string, systemInstruction?: string): Promise<string> {
   const messages: any[] = [];
@@ -33,57 +32,11 @@ async function groqChat(prompt: string, systemInstruction?: string): Promise<str
   if (!res.ok) {
     const err = await res.text();
     console.error("GROQ error:", err);
-    throw new Error("GROQ API error");
+    throw new Error(`GROQ API error: ${err}`);
   }
 
   const data = await res.json();
   return data.choices?.[0]?.message?.content || "";
-}
-
-async function generateEmbedding(text: string): Promise<number[]> {
-  const candidateModels = ["gemini-embedding-001", "text-embedding-004", "gemini-embedding-exp-03-07", "embedding-001"];
-  const apiVersions = ["v1beta", "v1"];
-  let lastError = "Unknown embedding error";
-
-  for (const modelName of candidateModels) {
-    for (const apiVersion of apiVersions) {
-      const payload: Record<string, unknown> = {
-        model: `models/${modelName}`,
-        content: { parts: [{ text }] },
-      };
-
-      if (modelName !== "embedding-001") {
-        payload.outputDimensionality = 768;
-      }
-
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/${apiVersion}/models/${modelName}:embedContent?key=${GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        const values = data.embedding?.values;
-        if (values?.length) return values;
-        lastError = `Modelo ${modelName} retornou embedding vazio`;
-        continue;
-      }
-
-      const errText = await res.text();
-      console.error(`Embedding error [${apiVersion}/${modelName}]:`, errText);
-      lastError = `API ${apiVersion}, modelo ${modelName}: ${errText}`;
-
-      if (res.status === 403 && errText.toLowerCase().includes("api key")) {
-        throw new Error("GEMINI_API_KEY inválida, expirada ou bloqueada. Atualize a chave no Supabase Secrets.");
-      }
-    }
-  }
-
-  throw new Error(`Embedding generation failed. Nenhum modelo de embedding está disponível para a GEMINI_API_KEY atual. ${lastError}`);
 }
 
 serve(async (req) => {
@@ -183,26 +136,42 @@ ${(records || []).map((r: any) => `${r.date} | ${r.category} | ${r.description} 
         "Você é o CondoAgent, assistente financeiro de um condomínio. Responda de forma clara e precisa baseado nos dados fornecidos."
       );
     } else {
-      // Use Gemini for embeddings, GROQ for chat
-      const embedding = await generateEmbedding(question);
+      // Text-based search using GROQ for keyword extraction + ILIKE
+      const keywordsPrompt = `Extraia as 3-5 palavras-chave mais importantes da seguinte pergunta para buscar em documentos de um condomínio.
+Responda APENAS com as palavras separadas por vírgula, sem explicação.
 
-      const { data: matches, error: matchError } = await supabase.rpc("match_knowledge_base", {
-        query_embedding: JSON.stringify(embedding),
-        match_threshold: 0.3,
-        match_count: 5,
-        filter_condo_id: condo_id,
-      });
+Pergunta: "${question}"`;
 
-      if (matchError) {
-        console.error("Match error:", matchError);
-        throw matchError;
+      const keywordsRaw = await groqChat(keywordsPrompt);
+      const keywords = keywordsRaw.split(",").map((k: string) => k.trim().toLowerCase()).filter((k: string) => k.length > 2);
+      console.log("Extracted keywords:", keywords);
+
+      // Search knowledge base using text matching
+      let allMatches: any[] = [];
+      for (const keyword of keywords) {
+        const { data: matches } = await supabase
+          .from("knowledge_base")
+          .select("id, content, metadata")
+          .eq("condo_id", condo_id)
+          .ilike("content", `%${keyword}%`)
+          .limit(10);
+
+        if (matches) allMatches.push(...matches);
       }
 
-      if (!matches || matches.length === 0) {
+      // Deduplicate by id
+      const seen = new Set<string>();
+      const uniqueMatches = allMatches.filter((m) => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      }).slice(0, 8);
+
+      if (uniqueMatches.length === 0) {
         answer = "Não encontrei informações relevantes na base de conhecimento do seu condomínio sobre essa pergunta.";
       } else {
-        const context = matches
-          .map((m: any, i: number) => `[Trecho ${i + 1} - Similaridade: ${(m.similarity * 100).toFixed(1)}%]\n${m.content}`)
+        const context = uniqueMatches
+          .map((m: any, i: number) => `[Trecho ${i + 1}]\n${m.content}`)
           .join("\n\n");
 
         answer = await groqChat(
