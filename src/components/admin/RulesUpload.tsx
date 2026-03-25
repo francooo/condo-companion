@@ -73,7 +73,7 @@ const RulesUpload = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Input type="file" accept=".txt" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
+        <Input type="file" accept=".txt,.pdf" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
         {isUploading && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
