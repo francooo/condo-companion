@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Building2, Plus, UserPlus, Loader2, Upload, FileText, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { isAcceptedFile, getTextFromFile } from "@/lib/pdf-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface Condo {
