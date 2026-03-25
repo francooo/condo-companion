@@ -24,7 +24,7 @@ serve(async (req) => {
 
     for (const chunk of chunks) {
       const candidateModels = ["gemini-embedding-001", "text-embedding-004", "gemini-embedding-exp-03-07", "embedding-001"];
-      const apiVersions = ["v1", "v1beta"];
+      const apiVersions = ["v1beta", "v1"];
 
       let embedding: number[] | null = null;
       let lastError = "Unknown embedding error";
