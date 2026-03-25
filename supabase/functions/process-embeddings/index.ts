@@ -23,27 +23,54 @@ serve(async (req) => {
     const records = [];
 
     for (const chunk of chunks) {
-      const embResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-embedding-exp-03-07:embedContent?key=${GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "models/gemini-embedding-exp-03-07",
-            content: { parts: [{ text: chunk }] },
-            outputDimensionality: 768,
-          }),
-        }
-      );
+      const candidateModels = ["text-embedding-004", "gemini-embedding-exp-03-07", "embedding-001"];
+      const apiVersions = ["v1", "v1beta"];
 
-      if (!embResponse.ok) {
-        const errText = await embResponse.text();
-        console.error("Embedding error:", errText);
-        throw new Error("Failed to generate embedding");
+      let embedding: number[] | null = null;
+      let lastError = "Unknown embedding error";
+
+      for (const modelName of candidateModels) {
+        for (const apiVersion of apiVersions) {
+          const payload: Record<string, unknown> = {
+            model: `models/${modelName}`,
+            content: { parts: [{ text: chunk }] },
+          };
+
+          if (modelName !== "embedding-001") {
+            payload.outputDimensionality = 768;
+          }
+
+          const embResponse = await fetch(
+            `https://generativelanguage.googleapis.com/${apiVersion}/models/${modelName}:embedContent?key=${GEMINI_API_KEY}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }
+          );
+
+          if (embResponse.ok) {
+            const embData = await embResponse.json();
+            embedding = embData.embedding?.values ?? null;
+            if (embedding?.length) break;
+            lastError = `Modelo ${modelName} retornou embedding vazio`;
+            continue;
+          }
+
+          const errText = await embResponse.text();
+          console.error(`Embedding error [${apiVersion}/${modelName}]:`, errText);
+          lastError = `API ${apiVersion}, modelo ${modelName}: ${errText}`;
+
+          if (embResponse.status === 403 && errText.toLowerCase().includes("api key")) {
+            throw new Error("GEMINI_API_KEY inválida, expirada ou bloqueada. Atualize a chave no Supabase Secrets.");
+          }
+        }
+        if (embedding?.length) break;
       }
 
-      const embData = await embResponse.json();
-      const embedding = embData.embedding.values;
+      if (!embedding?.length) {
+        throw new Error(`Failed to generate embedding. ${lastError}`);
+      }
 
       records.push({
         content: chunk,
