@@ -23,7 +23,7 @@ serve(async (req) => {
     const records = [];
 
     for (const chunk of chunks) {
-      const candidateModels = ["text-embedding-004", "gemini-embedding-exp-03-07", "embedding-001"];
+      const candidateModels = ["gemini-embedding-001", "text-embedding-004", "gemini-embedding-exp-03-07", "embedding-001"];
       const apiVersions = ["v1", "v1beta"];
 
       let embedding: number[] | null = null;

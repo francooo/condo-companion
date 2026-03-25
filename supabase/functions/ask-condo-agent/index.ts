@@ -41,7 +41,7 @@ async function groqChat(prompt: string, systemInstruction?: string): Promise<str
 }
 
 async function generateEmbedding(text: string): Promise<number[]> {
-  const candidateModels = ["text-embedding-004", "gemini-embedding-exp-03-07", "embedding-001"];
+  const candidateModels = ["gemini-embedding-001", "text-embedding-004", "gemini-embedding-exp-03-07", "embedding-001"];
   const apiVersions = ["v1", "v1beta"];
   let lastError = "Unknown embedding error";
 
