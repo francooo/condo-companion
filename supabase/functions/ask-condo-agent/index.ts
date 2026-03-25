@@ -41,22 +41,49 @@ async function groqChat(prompt: string, systemInstruction?: string): Promise<str
 }
 
 async function generateEmbedding(text: string): Promise<number[]> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-embedding-exp-03-07:embedContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "models/gemini-embedding-exp-03-07",
-        content: { parts: [{ text }] },
-        outputDimensionality: 768,
-      }),
-    }
-  );
+  const candidateModels = ["gemini-embedding-001", "text-embedding-004", "gemini-embedding-exp-03-07", "embedding-001"];
+  const apiVersions = ["v1beta", "v1"];
+  let lastError = "Unknown embedding error";
 
-  if (!res.ok) throw new Error("Embedding generation failed");
-  const data = await res.json();
-  return data.embedding.values;
+  for (const modelName of candidateModels) {
+    for (const apiVersion of apiVersions) {
+      const payload: Record<string, unknown> = {
+        model: `models/${modelName}`,
+        content: { parts: [{ text }] },
+      };
+
+      if (modelName !== "embedding-001") {
+        payload.outputDimensionality = 768;
+      }
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/${apiVersion}/models/${modelName}:embedContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const values = data.embedding?.values;
+        if (values?.length) return values;
+        lastError = `Modelo ${modelName} retornou embedding vazio`;
+        continue;
+      }
+
+      const errText = await res.text();
+      console.error(`Embedding error [${apiVersion}/${modelName}]:`, errText);
+      lastError = `API ${apiVersion}, modelo ${modelName}: ${errText}`;
+
+      if (res.status === 403 && errText.toLowerCase().includes("api key")) {
+        throw new Error("GEMINI_API_KEY inválida, expirada ou bloqueada. Atualize a chave no Supabase Secrets.");
+      }
+    }
+  }
+
+  throw new Error(`Embedding generation failed. Nenhum modelo de embedding está disponível para a GEMINI_API_KEY atual. ${lastError}`);
 }
 
 serve(async (req) => {
