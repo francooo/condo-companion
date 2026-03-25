@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { isAcceptedFile, getTextFromFile } from "@/lib/pdf-utils";
 
 function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
   const words = text.split(/\s+/);
@@ -27,8 +28,8 @@ const RulesUpload = () => {
     const file = e.target.files?.[0];
     if (!file || !profile?.condo_id) return;
 
-    if (!file.name.endsWith(".txt") && file.type !== "text/plain") {
-      toast.error("Formato não suportado. Use TXT.");
+    if (!isAcceptedFile(file)) {
+      toast.error("Formato não suportado. Use TXT ou PDF.");
       return;
     }
 
@@ -36,7 +37,7 @@ const RulesUpload = () => {
     setUploadedCount(0);
 
     try {
-      const text = await file.text();
+      const text = await getTextFromFile(file);
       const chunks = chunkText(text);
       toast.info(`Processando ${chunks.length} trechos...`);
 
@@ -68,11 +69,11 @@ const RulesUpload = () => {
           Upload de Regras e Regimento
         </CardTitle>
         <CardDescription>
-          Faça upload de arquivos TXT com as regras do condomínio.
+          Faça upload de arquivos TXT ou PDF com as regras do condomínio.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Input type="file" accept=".txt" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
+        <Input type="file" accept=".txt,.pdf" onChange={handleFileUpload} disabled={isUploading} className="cursor-pointer" />
         {isUploading && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Building2, Plus, UserPlus, Loader2, Upload, FileText, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { isAcceptedFile, getTextFromFile } from "@/lib/pdf-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface Condo {
@@ -127,8 +128,8 @@ const SuperAdminPage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.endsWith(".txt") && file.type !== "text/plain") {
-      toast.error("Formato não suportado. Use TXT.");
+    if (!isAcceptedFile(file)) {
+      toast.error("Formato não suportado. Use TXT ou PDF.");
       return;
     }
 
@@ -137,7 +138,7 @@ const SuperAdminPage = () => {
     setUploadedCount(0);
 
     try {
-      const text = await file.text();
+      const text = await getTextFromFile(file);
       const chunks = chunkText(text);
       toast.info(`Processando ${chunks.length} trechos...`);
 
@@ -254,12 +255,12 @@ const SuperAdminPage = () => {
                           </DialogHeader>
                           <div className="space-y-4 py-2">
                             <p className="text-sm text-muted-foreground">
-                              Faça upload de arquivos TXT com regras, regimento ou informações do condomínio.
+                              Faça upload de arquivos TXT ou PDF com regras, regimento ou informações do condomínio.
                               A IA usará esses documentos para responder aos moradores.
                             </p>
                             <Input
                               type="file"
-                              accept=".txt"
+                              accept=".txt,.pdf"
                               onChange={(e) => handleFileUpload(e, c.id)}
                               disabled={isUploading && uploadingCondoId === c.id}
                               className="cursor-pointer"
