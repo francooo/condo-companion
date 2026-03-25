@@ -255,7 +255,7 @@ const SuperAdminPage = () => {
                           </DialogHeader>
                           <div className="space-y-4 py-2">
                             <p className="text-sm text-muted-foreground">
-                              Faça upload de arquivos TXT com regras, regimento ou informações do condomínio.
+                              Faça upload de arquivos TXT ou PDF com regras, regimento ou informações do condomínio.
                               A IA usará esses documentos para responder aos moradores.
                             </p>
                             <Input
