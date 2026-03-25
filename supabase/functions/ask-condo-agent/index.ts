@@ -83,7 +83,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
     }
   }
 
-  throw new Error(`Embedding generation failed. ${lastError}`);
+  throw new Error(`Embedding generation failed. Nenhum modelo de embedding está disponível para a GEMINI_API_KEY atual. ${lastError}`);
 }
 
 serve(async (req) => {

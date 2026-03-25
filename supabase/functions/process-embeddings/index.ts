@@ -69,7 +69,7 @@ serve(async (req) => {
       }
 
       if (!embedding?.length) {
-        throw new Error(`Failed to generate embedding. ${lastError}`);
+        throw new Error(`Failed to generate embedding. Nenhum modelo de embedding está disponível para a GEMINI_API_KEY atual. ${lastError}`);
       }
 
       records.push({
