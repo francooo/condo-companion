@@ -72,7 +72,7 @@ Responda APENAS com a palavra "regras" ou "financeiro", sem explicação adicion
 
 Pergunta: "${question}"`;
 
-    const intent = (await groqChat(classificationPrompt)).trim().toLowerCase();
+    const intent = (await groqChat(classificationPrompt, undefined, { model: "llama-3.1-8b-instant", maxTokens: 10 })).trim().toLowerCase();
     console.log("Intent classified as:", intent);
 
     let answer: string;
