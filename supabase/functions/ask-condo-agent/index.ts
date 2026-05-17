@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")!;
 
-async function groqChat(prompt: string, systemInstruction?: string): Promise<string> {
+async function groqChat(prompt: string, systemInstruction?: string, opts?: { model?: string; maxTokens?: number }): Promise<string> {
   const messages: any[] = [];
   if (systemInstruction) {
     messages.push({ role: "system", content: systemInstruction });
@@ -22,10 +22,10 @@ async function groqChat(prompt: string, systemInstruction?: string): Promise<str
       "Authorization": `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: opts?.model || "llama-3.3-70b-versatile",
       messages,
       temperature: 0.3,
-      max_tokens: 2048,
+      max_tokens: opts?.maxTokens ?? 1024,
     }),
   });
 
@@ -72,7 +72,7 @@ Responda APENAS com a palavra "regras" ou "financeiro", sem explicação adicion
 
 Pergunta: "${question}"`;
 
-    const intent = (await groqChat(classificationPrompt)).trim().toLowerCase();
+    const intent = (await groqChat(classificationPrompt, undefined, { model: "llama-3.1-8b-instant", maxTokens: 10 })).trim().toLowerCase();
     console.log("Intent classified as:", intent);
 
     let answer: string;
@@ -90,7 +90,7 @@ Responda APENAS com o JSON, sem explicação.
 
 Pergunta: "${question}"`;
 
-      const filtersRaw = await groqChat(extractPrompt);
+      const filtersRaw = await groqChat(extractPrompt, undefined, { model: "llama-3.1-8b-instant", maxTokens: 200 });
       let filters: any = {};
       try {
         const jsonMatch = filtersRaw.match(/\{[\s\S]*\}/);
@@ -142,8 +142,8 @@ Responda APENAS com as palavras separadas por vírgula, sem explicação.
 
 Pergunta: "${question}"`;
 
-      const keywordsRaw = await groqChat(keywordsPrompt);
-      const keywords = keywordsRaw.split(",").map((k: string) => k.trim().toLowerCase()).filter((k: string) => k.length > 2);
+      const keywordsRaw = await groqChat(keywordsPrompt, undefined, { model: "llama-3.1-8b-instant", maxTokens: 60 });
+      const keywords = keywordsRaw.split(",").map((k: string) => k.trim().toLowerCase()).filter((k: string) => k.length > 2).slice(0, 5);
       console.log("Extracted keywords:", keywords);
 
       // Search knowledge base using text matching
@@ -154,7 +154,7 @@ Pergunta: "${question}"`;
           .select("id, content, metadata")
           .eq("condo_id", condo_id)
           .ilike("content", `%${keyword}%`)
-          .limit(10);
+          .limit(4);
 
         if (matches) allMatches.push(...matches);
       }
@@ -165,13 +165,13 @@ Pergunta: "${question}"`;
         if (seen.has(m.id)) return false;
         seen.add(m.id);
         return true;
-      }).slice(0, 8);
+      }).slice(0, 4);
 
       if (uniqueMatches.length === 0) {
         answer = "Não encontrei informações relevantes na base de conhecimento do seu condomínio sobre essa pergunta.";
       } else {
         const context = uniqueMatches
-          .map((m: any, i: number) => `[Trecho ${i + 1}]\n${m.content}`)
+          .map((m: any, i: number) => `[Trecho ${i + 1}]\n${String(m.content).slice(0, 1500)}`)
           .join("\n\n");
 
         answer = await groqChat(
