@@ -90,7 +90,7 @@ Responda APENAS com o JSON, sem explicação.
 
 Pergunta: "${question}"`;
 
-      const filtersRaw = await groqChat(extractPrompt);
+      const filtersRaw = await groqChat(extractPrompt, undefined, { model: "llama-3.1-8b-instant", maxTokens: 200 });
       let filters: any = {};
       try {
         const jsonMatch = filtersRaw.match(/\{[\s\S]*\}/);
