@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")!;
 
-async function groqChat(prompt: string, systemInstruction?: string): Promise<string> {
+async function groqChat(prompt: string, systemInstruction?: string, opts?: { model?: string; maxTokens?: number }): Promise<string> {
   const messages: any[] = [];
   if (systemInstruction) {
     messages.push({ role: "system", content: systemInstruction });
@@ -22,10 +22,10 @@ async function groqChat(prompt: string, systemInstruction?: string): Promise<str
       "Authorization": `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: opts?.model || "llama-3.3-70b-versatile",
       messages,
       temperature: 0.3,
-      max_tokens: 2048,
+      max_tokens: opts?.maxTokens ?? 1024,
     }),
   });
 
