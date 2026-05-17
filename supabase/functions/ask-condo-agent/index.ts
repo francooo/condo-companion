@@ -142,8 +142,8 @@ Responda APENAS com as palavras separadas por vírgula, sem explicação.
 
 Pergunta: "${question}"`;
 
-      const keywordsRaw = await groqChat(keywordsPrompt);
-      const keywords = keywordsRaw.split(",").map((k: string) => k.trim().toLowerCase()).filter((k: string) => k.length > 2);
+      const keywordsRaw = await groqChat(keywordsPrompt, undefined, { model: "llama-3.1-8b-instant", maxTokens: 60 });
+      const keywords = keywordsRaw.split(",").map((k: string) => k.trim().toLowerCase()).filter((k: string) => k.length > 2).slice(0, 5);
       console.log("Extracted keywords:", keywords);
 
       // Search knowledge base using text matching
@@ -154,7 +154,7 @@ Pergunta: "${question}"`;
           .select("id, content, metadata")
           .eq("condo_id", condo_id)
           .ilike("content", `%${keyword}%`)
-          .limit(10);
+          .limit(4);
 
         if (matches) allMatches.push(...matches);
       }
@@ -165,7 +165,7 @@ Pergunta: "${question}"`;
         if (seen.has(m.id)) return false;
         seen.add(m.id);
         return true;
-      }).slice(0, 8);
+      }).slice(0, 4);
 
       if (uniqueMatches.length === 0) {
         answer = "Não encontrei informações relevantes na base de conhecimento do seu condomínio sobre essa pergunta.";
