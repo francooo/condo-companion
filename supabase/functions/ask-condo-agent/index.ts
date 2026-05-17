@@ -171,7 +171,7 @@ Pergunta: "${question}"`;
         answer = "Não encontrei informações relevantes na base de conhecimento do seu condomínio sobre essa pergunta.";
       } else {
         const context = uniqueMatches
-          .map((m: any, i: number) => `[Trecho ${i + 1}]\n${m.content}`)
+          .map((m: any, i: number) => `[Trecho ${i + 1}]\n${String(m.content).slice(0, 1500)}`)
           .join("\n\n");
 
         answer = await groqChat(
