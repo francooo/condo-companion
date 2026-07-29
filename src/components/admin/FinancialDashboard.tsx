@@ -3,17 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
-
-interface FinancialRecord {
-  id: string;
-  date: string;
-  category: string;
-  description: string;
-  amount: number;
-  type: string;
-}
+import { api, FinancialRecord } from "@/lib/api";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const PAGE_SIZE = 15;
 
@@ -34,27 +25,19 @@ const FinancialDashboard = () => {
   }, [page, categoryFilter]);
 
   const fetchCategories = async () => {
-    const { data } = await (supabase.from as any)("financial_records").select("category");
-    if (data) {
-      const unique = [...new Set((data as any[]).map((r: any) => r.category))].sort() as string[];
-      setCategories(unique);
-    }
+    const { categories } = await api.financial.categories();
+    setCategories(categories);
   };
 
   const fetchRecords = async () => {
     setLoading(true);
-    let query = (supabase.from as any)("financial_records")
-      .select("*", { count: "exact" })
-      .order("date", { ascending: false })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-
-    if (categoryFilter !== "all") {
-      query = query.eq("category", categoryFilter);
-    }
-
-    const { data, count } = await query;
-    setRecords((data as FinancialRecord[]) || []);
-    setTotal(count || 0);
+    const { records, total } = await api.financial.list({
+      page,
+      pageSize: PAGE_SIZE,
+      category: categoryFilter !== "all" ? categoryFilter : undefined,
+    });
+    setRecords(records);
+    setTotal(total);
     setLoading(false);
   };
 

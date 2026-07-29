@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,24 +33,7 @@ const SelectCondoPage = () => {
     setLoading(true);
 
     try {
-      const { data: condo, error: condoError } = await (supabase.from as any)("condos")
-        .select("id, name")
-        .eq("identifier", slug.trim().toLowerCase())
-        .maybeSingle();
-
-      if (condoError) throw condoError;
-      if (!condo) {
-        toast.error("Condomínio não encontrado. Verifique o identificador.");
-        setLoading(false);
-        return;
-      }
-
-      const { error: updateError } = await (supabase.from as any)("profiles")
-        .update({ condo_id: condo.id })
-        .eq("id", user.id);
-
-      if (updateError) throw updateError;
-
+      const { condo } = await api.me.linkCondo(slug.trim().toLowerCase());
       await refreshProfile();
       toast.success(`Vinculado ao ${condo.name} com sucesso!`);
       navigate("/chat", { replace: true });

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,15 +9,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Building2, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { user, profile, loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { user, profile, loading: authLoading, setAuth } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [condoSlug, setCondoSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
   const [fullName, setFullName] = useState("");
+
+  useEffect(() => {
+    const oauthError = searchParams.get("error");
+    if (oauthError) toast.error(oauthError);
+  }, [searchParams]);
 
   useEffect(() => {
     if (authLoading || !user || !profile) return;
@@ -33,73 +40,13 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      // Authenticate first
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { token, user: loggedUser } = await api.auth.login({
         email: email.trim(),
         password,
+        condo_identifier: condoSlug.trim() || undefined,
       });
-      if (authError) throw authError;
-
-      // Fetch profile
-      const { data: profileData } = await (supabase.rpc as any)("get_my_profile");
-      const userProfile = (profileData as any[])?.[0];
-
-      if (!userProfile) {
-        await supabase.auth.signOut();
-        toast.error("Perfil não encontrado. Contate o administrador.");
-        setLoading(false);
-        return;
-      }
-
-      if (!userProfile.active) {
-        await supabase.auth.signOut();
-        toast.error("Sua conta está desativada. Contate o síndico.");
-        setLoading(false);
-        return;
-      }
-
-      // Superadmin doesn't need condo validation
-      if (userProfile.role === "superadmin") {
-        toast.success("Bem-vindo, Superadmin!");
-        navigate("/superadmin");
-        return;
-      }
-
-      // For admin/resident, validate condo slug
-      if (!condoSlug.trim()) {
-        await supabase.auth.signOut();
-        toast.error("Informe o identificador do condomínio.");
-        setLoading(false);
-        return;
-      }
-
-      const { data: condo, error: condoError } = await (supabase.from as any)("condos")
-        .select("id, name")
-        .eq("identifier", condoSlug.trim().toLowerCase())
-        .maybeSingle();
-
-      if (condoError) throw condoError;
-      if (!condo) {
-        await supabase.auth.signOut();
-        toast.error("Condomínio não encontrado. Verifique o identificador.");
-        setLoading(false);
-        return;
-      }
-
-      if (userProfile.condo_id !== condo.id) {
-        await supabase.auth.signOut();
-        toast.error("Você não pertence a este condomínio.");
-        setLoading(false);
-        return;
-      }
-
-      toast.success(`Bem-vindo ao ${condo.name}!`);
-
-      if (userProfile.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/chat");
-      }
+      setAuth(token, loggedUser);
+      toast.success(loggedUser.role === "superadmin" ? "Bem-vindo, Superadmin!" : `Bem-vindo, ${loggedUser.full_name || "morador"}!`);
     } catch (err: any) {
       toast.error(err.message || "Erro ao fazer login");
     } finally {
@@ -112,30 +59,14 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const { data: condo } = await (supabase.from as any)("condos")
-        .select("id")
-        .eq("identifier", condoSlug.trim().toLowerCase())
-        .maybeSingle();
-
-      if (!condo) {
-        toast.error("Condomínio não encontrado.");
-        setLoading(false);
-        return;
-      }
-
-      const { error } = await supabase.auth.signUp({
+      const { token, user: newUser } = await api.auth.signup({
         email: email.trim(),
         password,
-        options: {
-          data: { full_name: fullName, condo_identifier: condoSlug.trim().toLowerCase() },
-          emailRedirectTo: window.location.origin,
-        },
+        full_name: fullName.trim(),
+        condo_identifier: condoSlug.trim().toLowerCase(),
       });
-
-      if (error) throw error;
-
-      toast.success("Conta criada! Verifique seu e-mail para confirmar o cadastro.");
-      setIsSignup(false);
+      setAuth(token, newUser);
+      toast.success("Conta criada com sucesso!");
     } catch (err: any) {
       toast.error(err.message || "Erro ao cadastrar");
     } finally {
@@ -234,15 +165,8 @@ const LoginPage = () => {
               variant="outline"
               className="w-full"
               disabled={loading}
-              onClick={async () => {
-                const redirectUrl = condoSlug.trim()
-                  ? `${window.location.origin}/select-condo?condo=${encodeURIComponent(condoSlug.trim().toLowerCase())}`
-                  : window.location.origin;
-                const { error } = await supabase.auth.signInWithOAuth({
-                  provider: "google",
-                  options: { redirectTo: redirectUrl },
-                });
-                if (error) toast.error(error.message);
+              onClick={() => {
+                window.location.href = api.auth.googleUrl(condoSlug.trim() || undefined);
               }}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">

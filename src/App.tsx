@@ -8,6 +8,7 @@ import Navbar from "./components/layout/Navbar";
 import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
 import SetupPage from "./pages/SetupPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import ChatPage from "./pages/ChatPage";
 import AdminPage from "./pages/AdminPage";
 import SuperAdminPage from "./pages/SuperAdminPage";
@@ -53,6 +54,7 @@ const AppRoutes = () => (
       <Route path="/" element={<Index />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route
         path="/select-condo"
         element={

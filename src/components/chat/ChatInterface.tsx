@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Loader2, Building2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import ChatMessage from "./ChatMessage";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ export interface Message {
 }
 
 const ChatInterface = () => {
-  const { profile, user } = useAuth();
+  const { profile } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +25,7 @@ const ChatInterface = () => {
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || isLoading || !profile?.condo_id || !user) return;
+    if (!text || isLoading || !profile?.condo_id) return;
 
     const userMsg: Message = { role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
@@ -33,12 +33,7 @@ const ChatInterface = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("ask-condo-agent", {
-        body: { question: text, condo_id: profile.condo_id, user_id: user.id },
-      });
-
-      if (error) throw error;
-
+      const data = await api.chat.ask(text);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: data.answer || "Desculpe, não consegui gerar uma resposta." },

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
@@ -48,14 +48,12 @@ const FinancialUpload = () => {
         description: row["Descrição"] || (row as any).Descricao || "",
         amount: parseFloat(row.Valor?.replace(",", ".") || "0"),
         type: row.Tipo?.toLowerCase() === "receita" || row.Tipo?.toLowerCase() === "income" ? "income" : "expense",
-        condo_id: profile.condo_id,
       }));
 
-      const { error } = await (supabase.from as any)("financial_records").insert(records);
-      if (error) throw error;
+      const { count } = await api.financial.bulkInsert(records);
 
-      setUploadedCount(records.length);
-      toast.success(`${records.length} registros importados!`);
+      setUploadedCount(count);
+      toast.success(`${count} registros importados!`);
     } catch (err: any) {
       console.error(err);
       toast.error("Erro ao importar: " + (err.message || "Erro desconhecido"));

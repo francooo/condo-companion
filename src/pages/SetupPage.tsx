@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 
 const SetupPage = () => {
   const navigate = useNavigate();
+  const { setAuth } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -20,29 +22,15 @@ const SetupPage = () => {
     setLoading(true);
 
     try {
-      const cleanEmail = email.trim();
-      const cleanName = fullName.trim();
-
-      const { data, error } = await supabase.functions.invoke("setup-superadmin", {
-        body: { email: cleanEmail, password, full_name: cleanName },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
+      const { token, user } = await api.auth.bootstrapSuperadmin({
+        email: email.trim(),
         password,
+        full_name: fullName.trim(),
       });
 
-      if (signInError) {
-        toast.success("Superadmin criado! Faça login para continuar.");
-        navigate("/login", { replace: true });
-        return;
-      }
-
+      setAuth(token, user);
       toast.success("Setup concluído! Entrando no painel superadmin...");
-      window.location.assign("/superadmin");
+      navigate("/superadmin", { replace: true });
     } catch (err: any) {
       toast.error(err.message || "Erro ao criar superadmin");
     } finally {

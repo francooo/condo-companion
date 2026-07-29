@@ -1,23 +1,11 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { isAcceptedFile, getTextFromFile } from "@/lib/pdf-utils";
-
-function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
-  const words = text.split(/\s+/);
-  const chunks: string[] = [];
-  let i = 0;
-  while (i < words.length) {
-    const chunk = words.slice(i, i + chunkSize).join(" ");
-    if (chunk.trim()) chunks.push(chunk.trim());
-    i += chunkSize - overlap;
-  }
-  return chunks;
-}
 
 const RulesUpload = () => {
   const { profile } = useAuth();
@@ -38,21 +26,12 @@ const RulesUpload = () => {
 
     try {
       const text = await getTextFromFile(file);
-      const chunks = chunkText(text);
-      toast.info(`Processando ${chunks.length} trechos...`);
+      toast.info("Processando documento...");
 
-      const { data, error } = await supabase.functions.invoke("process-embeddings", {
-        body: {
-          chunks,
-          metadata: { filename: file.name },
-          condo_id: profile.condo_id,
-        },
-      });
+      const { count } = await api.knowledgeBase.upload({ text, filename: file.name, condo_id: profile.condo_id });
 
-      if (error) throw error;
-
-      setUploadedCount(chunks.length);
-      toast.success(`${chunks.length} trechos processados e salvos!`);
+      setUploadedCount(count);
+      toast.success(`${count} trechos processados e salvos!`);
     } catch (err: any) {
       console.error(err);
       toast.error("Erro ao processar: " + (err.message || "Erro desconhecido"));
@@ -77,7 +56,7 @@ const RulesUpload = () => {
         {isUploading && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Processando e gerando embeddings...
+            Processando documento com IA...
           </div>
         )}
         {uploadedCount > 0 && !isUploading && (

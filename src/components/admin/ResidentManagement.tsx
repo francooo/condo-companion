@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api, Resident } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { UserPlus, Users, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
-interface Resident {
-  id: string;
-  full_name: string | null;
-  role: string;
-  active: boolean;
-  created_at: string;
-}
 
 const ResidentManagement = () => {
   const { profile } = useAuth();
@@ -32,11 +24,8 @@ const ResidentManagement = () => {
   }, [profile?.condo_id]);
 
   const fetchResidents = async () => {
-    const { data } = await (supabase.from as any)("profiles")
-      .select("id, full_name, role, active, created_at")
-      .eq("condo_id", profile!.condo_id!)
-      .order("created_at", { ascending: false });
-    setResidents((data as Resident[]) || []);
+    const { residents } = await api.residents.list();
+    setResidents(residents);
     setLoading(false);
   };
 
@@ -44,17 +33,12 @@ const ResidentManagement = () => {
     e.preventDefault();
     setInviting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-users", {
-        body: {
-          action: "create_resident",
-          email: inviteEmail.trim(),
-          password: invitePassword,
-          full_name: inviteName.trim(),
-          condo_id: profile!.condo_id,
-        },
+      await api.residents.create({
+        email: inviteEmail.trim(),
+        password: invitePassword,
+        full_name: inviteName.trim(),
+        condo_id: profile!.condo_id!,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
       toast.success("Morador criado com sucesso!");
       setInviteEmail("");
       setInviteName("");
@@ -68,15 +52,13 @@ const ResidentManagement = () => {
   };
 
   const toggleActive = async (residentId: string, active: boolean) => {
-    const { error } = await (supabase.from as any)("profiles")
-      .update({ active })
-      .eq("id", residentId);
-    if (error) {
+    try {
+      await api.residents.setActive(residentId, active);
+      toast.success(active ? "Morador ativado" : "Morador desativado");
+      fetchResidents();
+    } catch {
       toast.error("Erro ao atualizar status");
-      return;
     }
-    toast.success(active ? "Morador ativado" : "Morador desativado");
-    fetchResidents();
   };
 
   return (

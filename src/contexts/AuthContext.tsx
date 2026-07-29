@@ -1,102 +1,79 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { api, Profile, setOnUnauthorized } from "@/lib/api";
+import { getToken, setToken as persistToken, clearToken } from "@/lib/auth-storage";
 
-interface Profile {
+interface AuthUser {
   id: string;
-  condo_id: string | null;
-  role: string;
-  full_name: string | null;
-  active: boolean;
+  email: string;
 }
 
 interface AuthContextType {
-  session: Session | null;
-  user: User | null;
+  user: AuthUser | null;
   profile: Profile | null;
   loading: boolean;
-  signOut: () => Promise<void>;
+  setAuth: (token: string, profile: Profile) => void;
+  signOut: () => void;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
-  session: null,
   user: null,
   profile: null,
   loading: true,
-  signOut: async () => {},
+  setAuth: () => {},
+  signOut: () => {},
   refreshProfile: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (): Promise<Profile | null> => {
-    const { data } = await (supabase.rpc as any)("get_my_profile");
-    const rows = (data as any[]) || [];
-    return rows.length > 0 ? (rows[0] as Profile) : null;
+  const applyProfile = (p: Profile | null) => {
+    setProfile(p);
+    setUser(p ? { id: p.id, email: p.email } : null);
   };
 
-  const applySession = async (nextSession: Session | null) => {
-    setSession(nextSession);
-    setUser(nextSession?.user ?? null);
+  const signOut = useCallback(() => {
+    clearToken();
+    applyProfile(null);
+  }, []);
 
-    if (!nextSession?.user) {
-      setProfile(null);
+  const refreshProfile = useCallback(async () => {
+    try {
+      const { user: p } = await api.auth.me();
+      applyProfile(p);
+    } catch {
+      signOut();
+    }
+  }, [signOut]);
+
+  useEffect(() => {
+    setOnUnauthorized(() => applyProfile(null));
+
+    const token = getToken();
+    if (!token) {
       setLoading(false);
       return;
     }
 
-    const nextProfile = await fetchProfile();
-    setProfile(nextProfile);
-    setLoading(false);
-  };
-
-  const refreshProfile = async () => {
-    if (!user) {
-      setProfile(null);
-      return;
-    }
-    const nextProfile = await fetchProfile();
-    setProfile(nextProfile);
-  };
-
-  useEffect(() => {
-    let mounted = true;
-
-    const safeApplySession = async (nextSession: Session | null) => {
-      if (!mounted) return;
-      await applySession(nextSession);
-    };
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      void safeApplySession(nextSession);
-    });
-
-    void supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      void safeApplySession(currentSession);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    api.auth
+      .me()
+      .then(({ user: p }) => applyProfile(p))
+      .catch(() => clearToken())
+      .finally(() => setLoading(false));
   }, []);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setProfile(null);
+  const setAuth = (token: string, p: Profile) => {
+    persistToken(token);
+    applyProfile(p);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, setAuth, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

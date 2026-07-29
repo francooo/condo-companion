@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api, Condo } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,25 +10,6 @@ import { Building2, Plus, UserPlus, Loader2, Upload, FileText, CheckCircle2 } fr
 import { toast } from "sonner";
 import { isAcceptedFile, getTextFromFile } from "@/lib/pdf-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-
-interface Condo {
-  id: string;
-  name: string;
-  identifier: string;
-  created_at: string;
-}
-
-function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
-  const words = text.split(/\s+/);
-  const chunks: string[] = [];
-  let i = 0;
-  while (i < words.length) {
-    const chunk = words.slice(i, i + chunkSize).join(" ");
-    if (chunk.trim()) chunks.push(chunk.trim());
-    i += chunkSize - overlap;
-  }
-  return chunks;
-}
 
 const SuperAdminPage = () => {
   const { profile } = useAuth();
@@ -51,40 +32,25 @@ const SuperAdminPage = () => {
   const [uploadingCondoId, setUploadingCondoId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedCount, setUploadedCount] = useState(0);
-  const [docCounts, setDocCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetchCondos();
   }, []);
 
   const fetchCondos = async () => {
-    const { data } = await (supabase.from as any)("condos").select("*").order("created_at", { ascending: false });
-    const condoList = (data as Condo[]) || [];
-    setCondos(condoList);
+    const { condos } = await api.condos.list();
+    setCondos(condos);
     setLoading(false);
-
-    // Fetch document counts per condo
-    if (condoList.length > 0) {
-      const counts: Record<string, number> = {};
-      for (const c of condoList) {
-        const { count } = await (supabase.from as any)("knowledge_base")
-          .select("*", { count: "exact", head: true })
-          .eq("condo_id", c.id);
-        counts[c.id] = count || 0;
-      }
-      setDocCounts(counts);
-    }
   };
 
   const createCondo = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
     try {
-      const { error } = await (supabase.from as any)("condos").insert({
+      await api.condos.create({
         name: condoName.trim(),
         identifier: condoSlug.trim().toLowerCase().replace(/\s+/g, "-"),
       });
-      if (error) throw error;
       toast.success("Condomínio criado!");
       setCondoName("");
       setCondoSlug("");
@@ -101,17 +67,12 @@ const SuperAdminPage = () => {
     if (!selectedCondoId) return;
     setCreatingAdmin(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-users", {
-        body: {
-          action: "create_admin",
-          email: adminEmail.trim(),
-          password: adminPassword,
-          full_name: adminName.trim(),
-          condo_id: selectedCondoId,
-        },
+      await api.admins.create({
+        email: adminEmail.trim(),
+        password: adminPassword,
+        full_name: adminName.trim(),
+        condo_id: selectedCondoId,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
       toast.success("Admin criado com sucesso!");
       setAdminEmail("");
       setAdminPassword("");
@@ -139,21 +100,12 @@ const SuperAdminPage = () => {
 
     try {
       const text = await getTextFromFile(file);
-      const chunks = chunkText(text);
-      toast.info(`Processando ${chunks.length} trechos...`);
+      toast.info("Processando documento...");
 
-      const { data, error } = await supabase.functions.invoke("process-embeddings", {
-        body: {
-          chunks,
-          metadata: { filename: file.name },
-          condo_id: condoId,
-        },
-      });
+      const { count } = await api.knowledgeBase.upload({ text, filename: file.name, condo_id: condoId });
 
-      if (error) throw error;
-
-      setUploadedCount(chunks.length);
-      toast.success(`${chunks.length} trechos processados e salvos!`);
+      setUploadedCount(count);
+      toast.success(`${count} trechos processados e salvos!`);
       fetchCondos(); // refresh doc counts
     } catch (err: any) {
       console.error(err);
@@ -232,7 +184,7 @@ const SuperAdminPage = () => {
                   <TableCell>
                     <span className="flex items-center gap-1 text-sm">
                       <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                      {docCounts[c.id] ?? "—"} trechos
+                      {c.doc_count ?? "—"} trechos
                     </span>
                   </TableCell>
                   <TableCell>{new Date(c.created_at).toLocaleDateString("pt-BR")}</TableCell>
@@ -268,7 +220,7 @@ const SuperAdminPage = () => {
                             {isUploading && uploadingCondoId === c.id && (
                               <div className="flex items-center gap-2 text-muted-foreground">
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                Processando e gerando embeddings...
+                                Processando documento com IA...
                               </div>
                             )}
                             {uploadedCount > 0 && !isUploading && uploadingCondoId === c.id && (
