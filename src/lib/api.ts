@@ -1,6 +1,6 @@
 import { getToken, setToken, clearToken } from "./auth-storage";
 
-const API_URL = import.meta.env.VITE_API_URL as string;
+const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 export class ApiError extends Error {
   status: number;
