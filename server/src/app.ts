@@ -2,12 +2,12 @@ import "dotenv/config";
 
 import express from "express";
 import cors from "cors";
-import authRoutes from "./routes/auth.routes";
-import condosRoutes from "./routes/condos.routes";
-import usersRoutes from "./routes/users.routes";
-import financialRoutes from "./routes/financial.routes";
-import documentsRoutes from "./routes/documents.routes";
-import chatRoutes from "./routes/chat.routes";
+import authRoutes from "./routes/auth.routes.js";
+import condosRoutes from "./routes/condos.routes.js";
+import usersRoutes from "./routes/users.routes.js";
+import financialRoutes from "./routes/financial.routes.js";
+import documentsRoutes from "./routes/documents.routes.js";
+import chatRoutes from "./routes/chat.routes.js";
 
 const app = express();
 

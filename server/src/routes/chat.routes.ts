@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { query } from "../db";
-import { requireAuth } from "../middleware/auth";
-import { groqChat, MODEL_FAST, MODEL_CHAT } from "../lib/groq";
+import { query } from "../db.js";
+import { requireAuth } from "../middleware/auth.js";
+import { groqChat, MODEL_FAST, MODEL_CHAT } from "../lib/groq.js";
 
 const router = Router();
 

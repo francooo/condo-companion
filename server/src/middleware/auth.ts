@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../lib/auth";
-import { query } from "../db";
+import { verifyToken } from "../lib/auth.js";
+import { query } from "../db.js";
 
 export interface AuthUser {
   id: string;

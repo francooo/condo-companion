@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { query } from "../db";
-import { hashPassword, verifyPassword, signToken, signState, verifyState } from "../lib/auth";
-import { buildGoogleAuthUrl, exchangeCodeForProfile } from "../lib/google-oauth";
-import { requireAuth } from "../middleware/auth";
+import { query } from "../db.js";
+import { hashPassword, verifyPassword, signToken, signState, verifyState } from "../lib/auth.js";
+import { buildGoogleAuthUrl, exchangeCodeForProfile } from "../lib/google-oauth.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
