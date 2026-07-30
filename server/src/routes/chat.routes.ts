@@ -14,8 +14,10 @@ router.post("/", requireAuth, async (req, res) => {
     if (!user.condo_id) return res.status(400).json({ error: "Usuário não vinculado a um condomínio" });
 
     const classificationPrompt = `Classifique a seguinte pergunta de um morador de condomínio em uma das duas categorias:
-- "regras" — se a pergunta é sobre regras, regulamentos, convivência, normas do condomínio
-- "financeiro" — se a pergunta é sobre finanças, gastos, receitas, prestação de contas, valores, despesas
+- "financeiro" — APENAS se a pergunta for claramente sobre dados financeiros do condomínio: gastos, receitas, prestação de contas, saldo, valores pagos ou arrecadados
+- "regras" — para QUALQUER outra pergunta, incluindo regras, regulamentos, convivência, normas, avisos, comunicados ou qualquer assunto que possa estar descrito nos documentos anexados ao condomínio, mesmo que o assunto pareça não ter relação direta com condomínio
+
+Na dúvida, responda "regras".
 
 Responda APENAS com a palavra "regras" ou "financeiro", sem explicação adicional.
 
