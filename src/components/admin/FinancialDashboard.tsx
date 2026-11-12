@@ -1,133 +1,146 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight, Hash, Loader2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { api, FinancialRecord } from "@/lib/api";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import MetricCard from "@/components/app/MetricCard";
+import SectionCard from "@/components/app/SectionCard";
+import StatusPill from "@/components/app/StatusPill";
+import EmptyState from "@/components/app/EmptyState";
+import ListRow, { ListRows } from "@/components/app/ListRow";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 15;
+const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+/** Datas "AAAA-MM-DD" são dias de calendário: formata sem converter fuso (evita mostrar o dia anterior). */
+const dateFmt = (d: string) => {
+  const [y, m, day] = d.slice(0, 10).split("-");
+  return y && m && day ? `${day}/${m}/${y}` : d;
+};
 
 const FinancialDashboard = () => {
-  const [records, setRecords] = useState<FinancialRecord[]>([]);
   const [page, setPage] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [categories, setCategories] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [category, setCategory] = useState("all");
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  const categories = useQuery({ queryKey: ["financial", "categories"], queryFn: () => api.financial.categories() });
+  const records = useQuery({
+    queryKey: ["financial", "list", page, category],
+    queryFn: () => api.financial.list({ page, pageSize: PAGE_SIZE, category: category !== "all" ? category : undefined }),
+    placeholderData: (prev) => prev,
+  });
 
-  useEffect(() => {
-    fetchRecords();
-  }, [page, categoryFilter]);
-
-  const fetchCategories = async () => {
-    const { categories } = await api.financial.categories();
-    setCategories(categories);
-  };
-
-  const fetchRecords = async () => {
-    setLoading(true);
-    const { records, total } = await api.financial.list({
-      page,
-      pageSize: PAGE_SIZE,
-      category: categoryFilter !== "all" ? categoryFilter : undefined,
-    });
-    setRecords(records);
-    setTotal(total);
-    setLoading(false);
-  };
-
-  const totalIncome = records.filter((r) => r.type === "income").reduce((s, r) => s + Number(r.amount), 0);
-  const totalExpense = records.filter((r) => r.type === "expense").reduce((s, r) => s + Number(r.amount), 0);
+  const rows = records.data?.records ?? [];
+  const total = records.data?.total ?? 0;
+  const income = rows.filter((r) => r.type === "income").reduce((s, r) => s + Number(r.amount), 0);
+  const expense = rows.filter((r) => r.type === "expense").reduce((s, r) => s + Number(r.amount), 0);
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Total de Registros</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{total}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Receitas (página)</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-green-600">R$ {totalIncome.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Despesas (página)</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-destructive">R$ {totalExpense.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p></CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+        <MetricCard label="Total de registros" icon={Hash} value={total.toLocaleString("pt-BR")} className="col-span-2 lg:col-span-1" />
+        <MetricCard label="Receitas (página)" icon={TrendingUp} value={brl(income)} hint="nesta página" hintTone="success" />
+        <MetricCard label="Despesas (página)" icon={TrendingDown} value={brl(expense)} hint="nesta página" />
       </div>
 
-      <div className="flex items-center gap-4">
-        <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setPage(0); }}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filtrar categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as categorias</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Tipo</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {records.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{new Date(r.date).toLocaleDateString("pt-BR")}</TableCell>
-                  <TableCell>{r.category}</TableCell>
-                  <TableCell>{r.description}</TableCell>
-                  <TableCell className={`text-right font-medium ${r.type === "income" ? "text-green-600" : "text-destructive"}`}>
-                    R$ {Number(r.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell>
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${r.type === "income" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                      {r.type === "income" ? "Receita" : "Despesa"}
-                    </span>
-                  </TableCell>
-                </TableRow>
+      <SectionCard
+        title="Lançamentos"
+        aside={
+          <Select
+            value={category}
+            onValueChange={(v) => {
+              setCategory(v);
+              setPage(0);
+            }}
+          >
+            <SelectTrigger className="h-10 w-48 rounded-xl" aria-label="Filtrar categoria">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              {(categories.data?.categories ?? []).map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
               ))}
-              {records.length === 0 && !loading && (
+            </SelectContent>
+          </Select>
+        }
+      >
+        {records.isLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : rows.length === 0 ? (
+          <EmptyState icon={Wallet} title="Nenhum lançamento encontrado" description="Importe uma planilha CSV para começar." />
+        ) : (
+          <>
+            <ListRows className="lg:hidden">
+              {rows.map((r) => (
+                <ListRow
+                  key={r.id}
+                  title={r.description || r.category}
+                  meta={`${r.category} · ${dateFmt(r.date)}`}
+                  trailing={
+                    <span className={cn("font-semibold", r.type === "income" ? "text-success" : "text-danger")}>
+                      {r.type === "income" ? "+" : "−"} {brl(Number(r.amount))}
+                    </span>
+                  }
+                />
+              ))}
+            </ListRows>
+            <Table className="hidden lg:table">
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                    Nenhum registro encontrado
-                  </TableCell>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Tipo</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{dateFmt(r.date)}</TableCell>
+                    <TableCell>{r.category}</TableCell>
+                    <TableCell>{r.description}</TableCell>
+                    <TableCell className={cn("text-right font-semibold", r.type === "income" ? "text-success" : "text-danger")}>
+                      {brl(Number(r.amount))}
+                    </TableCell>
+                    <TableCell>
+                      <StatusPill tone={r.type === "income" ? "success" : "danger"}>{r.type === "income" ? "Receita" : "Despesa"}</StatusPill>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
+        )}
 
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Mostrando {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, total)} de {total}
-        </p>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => setPage(page + 1)}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+        {total > 0 && (
+          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+            <p className="text-sm text-muted-foreground">
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} de {total}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="icon" aria-label="Página anterior" disabled={page === 0} onClick={() => setPage(page - 1)}>
+                <ChevronLeft />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Próxima página"
+                disabled={(page + 1) * PAGE_SIZE >= total}
+                onClick={() => setPage(page + 1)}
+              >
+                <ChevronRight />
+              </Button>
+            </div>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 };

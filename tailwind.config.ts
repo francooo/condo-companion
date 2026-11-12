@@ -15,6 +15,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -50,14 +51,20 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        gold: {
-          DEFAULT: "hsl(var(--gold))",
-          foreground: "hsl(var(--gold-foreground))",
+        "surface-warm": "hsl(var(--surface-warm))",
+        brand: {
+          DEFAULT: "hsl(var(--primary))",
+          soft: "hsl(var(--brand-soft))",
+          strong: "hsl(var(--brand-strong))",
         },
-        navy: {
-          DEFAULT: "hsl(var(--navy))",
-          light: "hsl(var(--navy-light))",
+        tenant: {
+          DEFAULT: "hsl(var(--tenant-primary))",
+          secondary: "hsl(var(--tenant-secondary))",
         },
+        success: { DEFAULT: "hsl(var(--success))", soft: "hsl(var(--success-soft))" },
+        warning: { DEFAULT: "hsl(var(--warning))", soft: "hsl(var(--warning-soft))" },
+        danger: { DEFAULT: "hsl(var(--danger))", soft: "hsl(var(--danger-soft))" },
+        info: { DEFAULT: "hsl(var(--info))", soft: "hsl(var(--info-soft))" },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -70,6 +77,8 @@ export default {
         },
       },
       borderRadius: {
+        "2xl": "calc(var(--radius) + 0.25rem)",
+        "3xl": "calc(var(--radius) + 0.5rem)",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
@@ -98,5 +107,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 } satisfies Config;

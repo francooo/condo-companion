@@ -1,93 +1,125 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Condo App design tokens (briefing §2):
+ * amarelo #FFC928 · preto #171717 · branco · cinza #F5F5F5 · borda #E5E5E5
+ */
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 215 25% 15%;
+    --background: 40 20% 99%;
+    --foreground: 0 0% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card-foreground: 0 0% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 0 0% 9%;
 
-    --primary: 213 56% 24%;
-    --primary-foreground: 45 100% 96%;
+    /* Amarelo Condo App */
+    --primary: 45 100% 58%;
+    --primary-foreground: 0 0% 9%;
 
-    --secondary: 45 100% 51%;
-    --secondary-foreground: 215 25% 10%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
 
-    --muted: 220 14% 92%;
-    --muted-foreground: 215 14% 45%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 30 4% 42%;
 
-    --accent: 45 100% 51%;
-    --accent-foreground: 215 25% 10%;
+    --accent: 48 100% 92%;
+    --accent-foreground: 0 0% 9%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 6 63% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
-    --ring: 213 56% 24%;
+    --border: 0 0% 90%;
+    --input: 0 0% 88%;
+    --ring: 45 100% 45%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    --sidebar-background: 213 56% 14%;
-    --sidebar-foreground: 45 100% 96%;
-    --sidebar-primary: 45 100% 51%;
-    --sidebar-primary-foreground: 215 25% 10%;
-    --sidebar-accent: 213 40% 20%;
-    --sidebar-accent-foreground: 45 100% 96%;
-    --sidebar-border: 213 40% 25%;
-    --sidebar-ring: 45 100% 51%;
+    /* Superfícies da marca */
+    --surface-warm: 45 41% 94%;
+    --brand-soft: 48 100% 88%;
+    --brand-strong: 43 100% 30%;
 
-    --gold: 45 100% 51%;
-    --gold-foreground: 215 25% 10%;
-    --navy: 213 56% 14%;
-    --navy-light: 213 56% 24%;
+    /* Estados */
+    --success: 153 63% 33%;
+    --success-soft: 145 45% 93%;
+    --warning: 43 100% 28%;
+    --warning-soft: 47 100% 91%;
+    --danger: 6 63% 46%;
+    --danger-soft: 6 80% 95%;
+    --info: 224 65% 51%;
+    --info-soft: 224 85% 95%;
+
+    /* Identidade do condomínio (sobrescrita por tenant) */
+    --tenant-primary: var(--primary);
+    --tenant-secondary: var(--foreground);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 9%;
+    --sidebar-primary: 45 100% 58%;
+    --sidebar-primary-foreground: 0 0% 9%;
+    --sidebar-accent: 48 100% 92%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 45 100% 45%;
   }
 
   .dark {
-    --background: 215 25% 8%;
-    --foreground: 45 100% 96%;
+    --background: 0 0% 7%;
+    --foreground: 40 20% 96%;
 
-    --card: 215 25% 12%;
-    --card-foreground: 45 100% 96%;
+    --card: 0 0% 10%;
+    --card-foreground: 40 20% 96%;
 
-    --popover: 215 25% 12%;
-    --popover-foreground: 45 100% 96%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 40 20% 96%;
 
-    --primary: 45 100% 51%;
-    --primary-foreground: 215 25% 10%;
+    --primary: 45 100% 58%;
+    --primary-foreground: 0 0% 9%;
 
-    --secondary: 213 56% 24%;
-    --secondary-foreground: 45 100% 96%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 40 20% 96%;
 
-    --muted: 215 20% 18%;
-    --muted-foreground: 215 14% 60%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 30 5% 65%;
 
-    --accent: 45 100% 51%;
-    --accent-foreground: 215 25% 10%;
+    --accent: 45 40% 18%;
+    --accent-foreground: 40 20% 96%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 6 70% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 20% 22%;
-    --input: 215 20% 22%;
-    --ring: 45 100% 51%;
+    --border: 0 0% 20%;
+    --input: 0 0% 22%;
+    --ring: 45 100% 58%;
 
-    --sidebar-background: 215 25% 6%;
-    --sidebar-foreground: 45 100% 96%;
-    --sidebar-primary: 45 100% 51%;
-    --sidebar-primary-foreground: 215 25% 10%;
-    --sidebar-accent: 215 20% 14%;
-    --sidebar-accent-foreground: 45 100% 96%;
-    --sidebar-border: 215 20% 16%;
-    --sidebar-ring: 45 100% 51%;
+    --surface-warm: 40 12% 13%;
+    --brand-soft: 45 40% 20%;
+    --brand-strong: 45 100% 65%;
+
+    --success: 150 50% 55%;
+    --success-soft: 150 30% 15%;
+    --warning: 45 100% 65%;
+    --warning-soft: 45 40% 16%;
+    --danger: 6 75% 65%;
+    --danger-soft: 6 40% 16%;
+    --info: 224 80% 70%;
+    --info-soft: 224 40% 18%;
+
+    --sidebar-background: 0 0% 9%;
+    --sidebar-foreground: 40 20% 96%;
+    --sidebar-primary: 45 100% 58%;
+    --sidebar-primary-foreground: 0 0% 9%;
+    --sidebar-accent: 45 40% 18%;
+    --sidebar-accent-foreground: 40 20% 96%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 45 100% 58%;
   }
 }
 
@@ -97,15 +129,17 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
   }
 }
 
-@layer utilities {
-  .chat-bubble-user {
-    @apply bg-primary text-primary-foreground rounded-2xl rounded-br-md;
-  }
-  .chat-bubble-agent {
-    @apply bg-card text-card-foreground rounded-2xl rounded-bl-md border border-border;
+@layer components {
+  /* Sobretítulo em caixa alta usado nos cabeçalhos de página */
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground;
   }
 }

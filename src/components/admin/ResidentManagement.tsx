@@ -1,152 +1,215 @@
-import { useEffect, useState } from "react";
-import { api, Resident } from "@/lib/api";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Search, UserPlus, Users } from "lucide-react";
+import { toast } from "sonner";
+import { api, type Resident } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { UserPlus, Users, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import SectionCard, { CountBadge } from "@/components/app/SectionCard";
+import FilterChips from "@/components/app/FilterChips";
+import FormField from "@/components/app/FormField";
+import StatusPill from "@/components/app/StatusPill";
+import EmptyState from "@/components/app/EmptyState";
+import ListRow, { ListRows } from "@/components/app/ListRow";
+import { condoInitials } from "@/components/app/CondoBadge";
+
+type Filter = "all" | "active" | "inactive";
+const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+
+const Avatar = ({ name }: { name: string | null }) => (
+  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-bold">
+    {condoInitials(name || "?")}
+  </span>
+);
+
+const AddResidentDialog = ({ condoId }: { condoId: string }) => {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ full_name: "", email: "", password: "" });
+
+  const create = useMutation({
+    mutationFn: () =>
+      api.residents.create({ email: form.email.trim(), password: form.password, full_name: form.full_name.trim(), condo_id: condoId }),
+    onSuccess: () => {
+      toast.success("Morador adicionado!");
+      setForm({ full_name: "", email: "", password: "" });
+      setOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["residents"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <UserPlus /> Adicionar morador
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="rounded-3xl">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl">Adicionar morador</DialogTitle>
+          <DialogDescription>Crie uma conta já vinculada a este condomínio.</DialogDescription>
+        </DialogHeader>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            create.mutate();
+          }}
+          className="space-y-4"
+        >
+          <FormField label="Nome completo" htmlFor="res-name">
+            <Input id="res-name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
+          </FormField>
+          <FormField label="E-mail" htmlFor="res-email">
+            <Input id="res-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          </FormField>
+          <FormField label="Senha inicial" htmlFor="res-pass" hint="Mínimo de 6 caracteres.">
+            <Input id="res-pass" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6} />
+          </FormField>
+          <Button type="submit" className="w-full" disabled={create.isPending}>
+            {create.isPending && <Loader2 className="animate-spin" />}
+            Adicionar
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const ResidentManagement = () => {
   const { profile } = useAuth();
-  const [residents, setResidents] = useState<Resident[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteName, setInviteName] = useState("");
-  const [invitePassword, setInvitePassword] = useState("");
-  const [inviting, setInviting] = useState(false);
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
 
-  useEffect(() => {
-    if (profile?.condo_id) fetchResidents();
-  }, [profile?.condo_id]);
+  const { data, isLoading } = useQuery({ queryKey: ["residents"], queryFn: () => api.residents.list() });
+  const residents = useMemo(() => data?.residents ?? [], [data]);
 
-  const fetchResidents = async () => {
-    const { residents } = await api.residents.list();
-    setResidents(residents);
-    setLoading(false);
-  };
+  const toggle = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => api.residents.setActive(id, active),
+    onSuccess: (_d, v) => {
+      toast.success(v.active ? "Morador ativado" : "Morador desativado");
+      queryClient.invalidateQueries({ queryKey: ["residents"] });
+    },
+    onError: () => toast.error("Erro ao atualizar status"),
+  });
 
-  const inviteResident = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setInviting(true);
-    try {
-      await api.residents.create({
-        email: inviteEmail.trim(),
-        password: invitePassword,
-        full_name: inviteName.trim(),
-        condo_id: profile!.condo_id!,
-      });
-      toast.success("Morador criado com sucesso!");
-      setInviteEmail("");
-      setInviteName("");
-      setInvitePassword("");
-      fetchResidents();
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setInviting(false);
-    }
-  };
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return residents.filter(
+      (r) =>
+        (filter === "all" || (filter === "active" ? r.active : !r.active)) &&
+        (!q || (r.full_name ?? "").toLowerCase().includes(q)),
+    );
+  }, [residents, search, filter]);
 
-  const toggleActive = async (residentId: string, active: boolean) => {
-    try {
-      await api.residents.setActive(residentId, active);
-      toast.success(active ? "Morador ativado" : "Morador desativado");
-      fetchResidents();
-    } catch {
-      toast.error("Erro ao atualizar status");
-    }
-  };
+  const roleLabel = (r: Resident) => (r.role === "admin" ? "Síndico" : "Morador");
+  const canToggle = (r: Resident) => r.id !== profile?.id;
 
   return (
     <div className="space-y-6">
-      {/* Invite form */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-gold" />
-            Adicionar Morador
-          </CardTitle>
-          <CardDescription>Crie uma conta para um novo morador do condomínio.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={inviteResident} className="grid gap-4 sm:grid-cols-4">
-            <div className="space-y-2">
-              <Label>Nome</Label>
-              <Input value={inviteName} onChange={(e) => setInviteName(e.target.value)} placeholder="Nome completo" required />
-            </div>
-            <div className="space-y-2">
-              <Label>E-mail</Label>
-              <Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="morador@email.com" required />
-            </div>
-            <div className="space-y-2">
-              <Label>Senha</Label>
-              <Input type="password" value={invitePassword} onChange={(e) => setInvitePassword(e.target.value)} placeholder="••••••" required minLength={6} />
-            </div>
-            <div className="flex items-end">
-              <Button type="submit" disabled={inviting} className="w-full bg-gold text-gold-foreground hover:bg-gold/90">
-                {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Adicionar"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input placeholder="Buscar morador" aria-label="Buscar morador" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-11" />
+        </div>
+        {profile?.condo_id && <AddResidentDialog condoId={profile.condo_id} />}
+      </div>
 
-      {/* Residents list */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-gold" />
-            Moradores ({residents.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Perfil</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Desde</TableHead>
-                <TableHead>Ativo</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {residents.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.full_name || "—"}</TableCell>
-                  <TableCell>
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${r.role === "admin" ? "bg-gold/20 text-gold" : "bg-muted text-muted-foreground"}`}>
-                      {r.role === "admin" ? "Síndico" : "Morador"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`rounded-full px-2 py-1 text-xs ${r.active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                      {r.active ? "Ativo" : "Inativo"}
-                    </span>
-                  </TableCell>
-                  <TableCell>{new Date(r.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                  <TableCell>
-                    {r.id !== profile?.id && (
-                      <Switch checked={r.active} onCheckedChange={(val) => toggleActive(r.id, val)} />
-                    )}
-                  </TableCell>
-                </TableRow>
+      <FilterChips<Filter>
+        aria-label="Filtrar por status"
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: "all", label: "Todos" },
+          { value: "active", label: "Ativos" },
+          { value: "inactive", label: "Inativos" },
+        ]}
+      />
+
+      <SectionCard
+        title={`Moradores · ${profile?.condo_name ?? "condomínio"}`}
+        description="Contas vinculadas somente a este condomínio."
+        aside={<CountBadge>{residents.length} no total</CountBadge>}
+      >
+        {isLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={Users} title="Nenhum morador encontrado" description="Ajuste a busca ou adicione um novo morador." />
+        ) : (
+          <>
+            {/* Mobile: lista */}
+            <ListRows className="lg:hidden">
+              {filtered.map((r) => (
+                <ListRow
+                  key={r.id}
+                  leading={<Avatar name={r.full_name} />}
+                  title={r.full_name || "—"}
+                  meta={`${roleLabel(r)} · desde ${dateFmt.format(new Date(r.created_at))}`}
+                  trailing={
+                    <div className="flex items-center gap-3">
+                      <StatusPill status={r.active ? "active" : "inactive"} />
+                      {canToggle(r) && (
+                        <Switch
+                          aria-label={r.active ? "Desativar morador" : "Ativar morador"}
+                          checked={r.active}
+                          onCheckedChange={(val) => toggle.mutate({ id: r.id, active: val })}
+                        />
+                      )}
+                    </div>
+                  }
+                />
               ))}
-              {residents.length === 0 && !loading && (
+            </ListRows>
+
+            {/* Desktop: tabela */}
+            <Table className="hidden lg:table">
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                    Nenhum morador cadastrado
-                  </TableCell>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Perfil</TableHead>
+                  <TableHead>Vínculo desde</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Acesso</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar name={r.full_name} />
+                        <span className="font-semibold">{r.full_name || "—"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{roleLabel(r)}</TableCell>
+                    <TableCell>{dateFmt.format(new Date(r.created_at))}</TableCell>
+                    <TableCell>
+                      <StatusPill status={r.active ? "active" : "inactive"} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {canToggle(r) && (
+                        <Switch
+                          aria-label={r.active ? "Desativar morador" : "Ativar morador"}
+                          checked={r.active}
+                          onCheckedChange={(val) => toggle.mutate({ id: r.id, active: val })}
+                        />
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
+        )}
+      </SectionCard>
     </div>
   );
 };

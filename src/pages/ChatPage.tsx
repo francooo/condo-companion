@@ -1,11 +1,10 @@
 import ChatInterface from "@/components/chat/ChatInterface";
 
-const ChatPage = () => {
-  return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <ChatInterface />
-    </div>
-  );
-};
+/** Altura útil: viewport − barra superior (4rem) − barra inferior no mobile (6rem). */
+const ChatPage = () => (
+  <div className="mx-auto flex h-[calc(100dvh-10rem)] w-full max-w-4xl flex-col sm:px-6 sm:py-6 lg:h-[calc(100dvh-4rem)]">
+    <ChatInterface />
+  </div>
+);
 
 export default ChatPage;

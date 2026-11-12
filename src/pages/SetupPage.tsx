@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Loader2, Shield } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { errorMessage } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import PublicShell from "@/components/layout/PublicShell";
+import FormField from "@/components/app/FormField";
 
 const SetupPage = () => {
   const navigate = useNavigate();
@@ -20,79 +21,51 @@ const SetupPage = () => {
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const { token, user } = await api.auth.bootstrapSuperadmin({
         email: email.trim(),
         password,
         full_name: fullName.trim(),
       });
-
       setAuth(token, user);
-      toast.success("Setup concluído! Entrando no painel superadmin...");
-      navigate("/superadmin", { replace: true });
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao criar superadmin");
+      toast.success("Configuração concluída!");
+      navigate("/plataforma", { replace: true });
+    } catch (err) {
+      toast.error(errorMessage(err, "Erro ao criar o administrador da plataforma"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy px-4">
-      <Card className="w-full max-w-md border-border bg-card">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-gold/10">
-            <Shield className="h-8 w-8 text-gold" />
-          </div>
-          <CardTitle className="text-2xl font-bold">Setup Inicial</CardTitle>
-          <CardDescription>
-            Crie a conta do Superadmin para começar a usar o sistema.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSetup} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Nome Completo</Label>
-              <Input
-                id="fullName"
-                placeholder="Nome do administrador"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
-            <Button type="submit" className="w-full bg-gold text-gold-foreground hover:bg-gold/90" disabled={loading}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Shield className="mr-2 h-4 w-4" />}
-              Criar Superadmin
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <PublicShell
+      heroTagline="Configuração inicial"
+      heroTitle="Prepare a plataforma para seus condomínios."
+      heroDescription="Crie a conta de administração da plataforma. Ela gerencia condomínios, administradores e bases de conhecimento."
+    >
+      <div className="space-y-6 py-2">
+        <div className="space-y-2">
+          <p className="eyebrow">Primeiro acesso</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">Administrador da plataforma</h1>
+          <p className="text-muted-foreground">Este passo só funciona enquanto não houver nenhum administrador.</p>
+        </div>
+        <form onSubmit={handleSetup} className="space-y-4">
+          <FormField label="Nome completo" htmlFor="fullName">
+            <Input id="fullName" placeholder="Nome do administrador" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          </FormField>
+          <FormField label="E-mail" htmlFor="email">
+            <Input id="email" type="email" placeholder="admin@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </FormField>
+          <FormField label="Senha" htmlFor="password">
+            <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+          </FormField>
+          <Button type="submit" size="lg" className="w-full" disabled={loading}>
+            {loading ? <Loader2 className="animate-spin" /> : <Shield />}
+            Criar administrador
+          </Button>
+        </form>
+      </div>
+    </PublicShell>
   );
 };
 

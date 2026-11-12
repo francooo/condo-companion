@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { setToken } from "@/lib/auth-storage";
 import { api } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import FullScreenLoader from "@/components/app/FullScreenLoader";
 import { toast } from "sonner";
 
 const AuthCallbackPage = () => {
@@ -34,11 +34,7 @@ const AuthCallbackPage = () => {
       });
   }, [navigate, setAuth]);
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-navy">
-      <Loader2 className="h-8 w-8 animate-spin text-gold" />
-    </div>
-  );
+  return <FullScreenLoader />;
 };
 
 export default AuthCallbackPage;
