@@ -111,10 +111,24 @@
 
   /* the statement's strong words: the brand's yellow is too light on this ground, so a deep amber of it */
   #privacidade { --accent: #7a5600; }
+  /* the statement stands in the middle of its screen, not at the top with an empty half under it */
+  #privacidade > .wrap { justify-content: center; }
+  main h2, footer h2 { hyphens: manual; }
+  /* a low window (a laptop at 125 or 150% zoom): a section keeps at least its screens and grows with its
+     content instead of laying it over the next section, as the kit already does under 1280px */
+  @media (min-width: 1280px) and (max-height: 859px) {
+    main > :is(section, .section):not(.hero), footer.closing { height: auto; min-height: calc(var(--h, 1) * 100svh); display: flex; flex-direction: column; }
+    main > :is(section, .section):not(.hero) > .wrap, footer.closing > .wrap { flex: 1 0 auto; height: auto; min-height: 0; }
+    #documentos .app.fill { min-height: 440px; }
+    #administradoras .frame--split { min-height: 420px; }
+    #sindico.g2 > .wrap { grid-template-rows: auto auto; }
+    main > .hero { height: auto; min-height: 100svh; }
+    .hero--centred .hero__window { flex: 0 0 auto; height: 330px; }
+  }
   @media (max-width: 1023px) { #faq .faq__item--extra { display: none; } }
   @media (max-width: 639px) { #faq .span-5 > p, #faq .span-5 > .link { display: none; } #faq .faq__item p { margin-top: 4px; } }
   .hero--centred .hero__lead { color: var(--ink); }
-  .close--word .close__word { font-size: clamp(56px, 10vw, 150px); line-height: 1.04; white-space: nowrap; }
+  .close--word .close__word { font-size: clamp(56px, min(10vw, 19svh), 150px); line-height: 1.04; white-space: nowrap; }
   @media (max-width: 639px) {
     .close--word .close__word { font-size: clamp(40px, 16vw, 72px); }
     .close--word .section-head--split .btn { width: 100%; }
