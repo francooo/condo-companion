@@ -24,6 +24,13 @@ app.use("/api/documents", documentsRoutes);
 app.use("/api/chat", chatRoutes);
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // Erros do body-parser (corpo grande demais ou JSON malformado) são do cliente, não do servidor.
+  if (err?.type === "entity.too.large") {
+    return res.status(413).json({ error: "O arquivo ou conteúdo enviado é grande demais." });
+  }
+  if (err?.type === "entity.parse.failed") {
+    return res.status(400).json({ error: "Corpo da requisição inválido." });
+  }
   console.error(err);
   res.status(500).json({ error: err.message || "Erro interno do servidor" });
 });

@@ -84,6 +84,52 @@ export interface Resident {
   member_since: string;
 }
 
+export type DocumentStatus = "uploaded" | "processing" | "processed" | "failed" | "needs_review";
+export type DocumentCategory = "convencao" | "regimento" | "atas" | "comunicados" | "regulamentos" | "manuais" | "outros";
+
+export interface CondoDocument {
+  id: string;
+  condo_id: string;
+  filename: string;
+  mime: string | null;
+  size: number | null;
+  category: DocumentCategory;
+  description: string | null;
+  status: DocumentStatus;
+  active: boolean;
+  page_count: number | null;
+  chunk_count: number;
+  error: string | null;
+  has_file: boolean;
+  created_at: string;
+  updated_at: string;
+  processed_at: string | null;
+  uploaded_by_name: string | null;
+  /** Presentes no detalhe. */
+  condo_name?: string;
+  summarized_count?: number;
+  file_size?: number | null;
+}
+
+export interface DocumentUploadBody {
+  filename: string;
+  mime: string;
+  size: number;
+  pages: { page: number | null; text: string }[];
+}
+
+export interface ProcessResult {
+  document: CondoDocument;
+  processed: number;
+  total: number;
+}
+
+export interface ChatSource {
+  document_id: string;
+  filename: string;
+  page: number | null;
+}
+
 export interface FinancialRecord {
   id: string;
   date: string;
@@ -129,6 +175,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (res.status === 204) return undefined as T;
   return res.json();
 }
+
+/** Requisição que devolve binário (ex.: arquivo original de um documento). */
+async function requestBlob(path: string): Promise<Blob> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(body.error || `Erro ${res.status}`, res.status, body.code);
+  }
+  return res.blob();
+}
+
+const withCondo = (condoId?: string) => (condoId ? `?condo_id=${encodeURIComponent(condoId)}` : "");
 
 export const api = {
   auth: {
@@ -208,16 +267,34 @@ export const api = {
         body: JSON.stringify({ records }),
       }),
   },
-  knowledgeBase: {
-    upload: (data: { text: string; filename: string; condo_id?: string }) =>
-      request<{ success: boolean; count: number }>("/api/documents", {
-        method: "POST",
-        body: JSON.stringify(data),
+  documents: {
+    /** `condoId` só é usado pelo administrador da plataforma; o admin do condomínio fica no próprio. */
+    list: (condoId?: string) => request<{ documents: CondoDocument[] }>(`/api/documents${withCondo(condoId)}`),
+    get: (id: string) => request<{ document: CondoDocument }>(`/api/documents/${id}`),
+    create: (data: DocumentUploadBody & { category: DocumentCategory; description?: string; condo_id?: string }) =>
+      request<{ document: CondoDocument }>("/api/documents", { method: "POST", body: JSON.stringify(data) }),
+    replace: (id: string, data: DocumentUploadBody) =>
+      request<{ document: CondoDocument }>(`/api/documents/${id}/replace`, { method: "POST", body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<Pick<CondoDocument, "category" | "description" | "active">>) =>
+      request<{ document: CondoDocument }>(`/api/documents/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    remove: (id: string) => request<void>(`/api/documents/${id}`, { method: "DELETE" }),
+    process: (id: string, force = false) =>
+      request<ProcessResult>(`/api/documents/${id}/process`, { method: "POST", body: JSON.stringify({ force }) }),
+    uploadFile: (id: string, file: File, mime: string) =>
+      request<{ document: CondoDocument }>(`/api/documents/${id}/file`, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": mime },
       }),
+    downloadFile: (id: string) => requestBlob(`/api/documents/${id}/file`),
+    page: (id: string, page: number) =>
+      request<{ document: { id: string; filename: string; page_count: number }; page: number; content: string }>(
+        `/api/documents/${id}/pages/${page}`
+      ),
   },
   chat: {
     ask: (question: string) =>
-      request<{ answer: string; intent: string }>("/api/chat", {
+      request<{ answer: string; intent: string; sources?: ChatSource[] }>("/api/chat", {
         method: "POST",
         body: JSON.stringify({ question }),
       }),

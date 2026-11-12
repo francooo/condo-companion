@@ -19,7 +19,7 @@ export async function groqChat(
   if (systemInstruction) messages.push({ role: "system", content: systemInstruction });
   messages.push({ role: "user", content: prompt });
 
-  const res = await fetch(GROQ_URL, {
+  const res = await fetch(process.env.GROQ_API_URL || GROQ_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

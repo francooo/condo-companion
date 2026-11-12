@@ -1,14 +1,13 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, FileUp, Loader2, Plus, Search, UserPlus } from "lucide-react";
+import { Building2, FileText, Loader2, Plus, Search, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { api, type Condo } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import RulesUpload from "@/components/admin/RulesUpload";
 import PageHeader from "@/components/app/PageHeader";
 import SectionCard, { CountBadge } from "@/components/app/SectionCard";
 import FormField from "@/components/app/FormField";
@@ -159,26 +158,10 @@ const CreateAdminDialog = ({ condo, onClose }: { condo: Condo | null; onClose: (
   );
 };
 
-const UploadDocsDialog = ({ condo, onClose }: { condo: Condo | null; onClose: () => void }) => {
-  const queryClient = useQueryClient();
-  return (
-    <Dialog open={Boolean(condo)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-3xl sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="font-display text-xl">Documentos · {condo?.name}</DialogTitle>
-          <DialogDescription>Os documentos ficam disponíveis somente ao assistente deste condomínio.</DialogDescription>
-        </DialogHeader>
-        {condo && <RulesUpload condoId={condo.id} onUploaded={() => queryClient.invalidateQueries({ queryKey: ["condos"] })} />}
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 const CondosPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [adminFor, setAdminFor] = useState<Condo | null>(null);
-  const [docsFor, setDocsFor] = useState<Condo | null>(null);
   const createOpen = searchParams.get("novo") === "1";
   const setCreateOpen = (o: boolean) => setSearchParams(o ? { novo: "1" } : {}, { replace: true });
 
@@ -192,8 +175,10 @@ const CondosPage = () => {
 
   const rowActions = (c: Condo) => (
     <div className="flex flex-wrap gap-2 lg:flex-nowrap">
-      <Button variant="outline" size="sm" onClick={() => setDocsFor(c)}>
-        <FileUp /> Documentos
+      <Button asChild variant="outline" size="sm">
+        <Link to={`/plataforma/condominios/${c.id}/documentos`}>
+          <FileText /> Documentos
+        </Link>
       </Button>
       <Button variant="outline" size="sm" onClick={() => setAdminFor(c)}>
         <UserPlus /> Administrador
@@ -240,7 +225,7 @@ const CondosPage = () => {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{c.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {[c.city, `${c.resident_count ?? 0} moradores`, `${c.doc_count ?? 0} trechos`].filter(Boolean).join(" · ")}
+                        {[c.city, `${c.resident_count ?? 0} moradores`, `${c.doc_count ?? 0} documentos`].filter(Boolean).join(" · ")}
                       </p>
                       {(c.pending_count ?? 0) > 0 && <p className="text-sm font-semibold text-warning">{c.pending_count} solicitações pendentes</p>}
                     </div>
@@ -277,7 +262,7 @@ const CondosPage = () => {
                       {c.resident_count ?? 0}
                       {(c.pending_count ?? 0) > 0 && <span className="ml-2 text-xs font-semibold text-warning">+{c.pending_count} pendentes</span>}
                     </TableCell>
-                    <TableCell>{c.doc_count ?? 0} trechos</TableCell>
+                    <TableCell>{c.doc_count ?? 0} documentos</TableCell>
                     <TableCell className="whitespace-nowrap">{dateFmt.format(new Date(c.created_at))}</TableCell>
                     <TableCell>
                       <div className="flex justify-end">{rowActions(c)}</div>
@@ -292,7 +277,6 @@ const CondosPage = () => {
 
       <CreateCondoDialog open={createOpen} onOpenChange={setCreateOpen} />
       <CreateAdminDialog condo={adminFor} onClose={() => setAdminFor(null)} />
-      <UploadDocsDialog condo={docsFor} onClose={() => setDocsFor(null)} />
     </PageContainer>
   );
 };

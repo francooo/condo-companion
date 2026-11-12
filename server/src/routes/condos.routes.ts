@@ -40,7 +40,7 @@ router.get("/", requireAuth, requireRole("superadmin"), async (_req, res) => {
            COALESCE(m.residents, 0)::int AS resident_count,
            COALESCE(m.pending, 0)::int AS pending_count
       FROM condos c
-      LEFT JOIN (SELECT condo_id, COUNT(*) AS doc_count FROM knowledge_base GROUP BY condo_id) kb ON kb.condo_id = c.id
+      LEFT JOIN (SELECT condo_id, COUNT(*) AS doc_count FROM documents GROUP BY condo_id) kb ON kb.condo_id = c.id
       LEFT JOIN (
         SELECT condo_id,
                COUNT(*) FILTER (WHERE membership_status = 'approved') AS residents,

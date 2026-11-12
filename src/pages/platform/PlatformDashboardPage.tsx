@@ -19,7 +19,7 @@ const PlatformDashboardPage = () => {
   const { profile } = useAuth();
   const { data, isLoading } = useQuery({ queryKey: ["condos"], queryFn: () => api.condos.list() });
   const condos = data?.condos ?? [];
-  const chunks = condos.reduce((s, c) => s + Number(c.doc_count ?? 0), 0);
+  const docs = condos.reduce((s, c) => s + Number(c.doc_count ?? 0), 0);
   const recent = [...condos].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 5);
 
   return (
@@ -39,7 +39,7 @@ const PlatformDashboardPage = () => {
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <MetricCard label="Condomínios cadastrados" icon={Building2} value={isLoading ? "—" : condos.length} hint="em toda a plataforma" hintTone="success" />
-        <MetricCard label="Trechos indexados" icon={FileText} value={isLoading ? "—" : chunks.toLocaleString("pt-BR")} hint="em todas as bibliotecas" hintTone="success" />
+        <MetricCard label="Documentos" icon={FileText} value={isLoading ? "—" : docs.toLocaleString("pt-BR")} hint="em todas as bibliotecas" hintTone="success" />
       </div>
 
       <SectionCard

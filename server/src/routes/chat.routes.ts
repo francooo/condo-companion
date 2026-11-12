@@ -28,6 +28,7 @@ Pergunta: "${question}"`;
     ).trim().toLowerCase();
 
     let answer: string;
+    const sources: { document_id: string; filename: string; page: number | null }[] = [];
 
     if (intent.includes("financeiro")) {
       const extractPrompt = `Analise a seguinte pergunta sobre finanças de um condomínio e extraia os filtros em JSON:
@@ -118,11 +119,15 @@ Pergunta: "${question}"`;
         .filter((k) => k.length > 2)
         .join(" OR ");
 
+      // Só documentos processados e ativos fundamentam respostas.
       const { rows: matches } = await query(
-        `SELECT id, content, metadata FROM knowledge_base
-         WHERE condo_id = $1 AND search_vector @@ websearch_to_tsquery('portuguese', $2)
-         ORDER BY ts_rank(search_vector, websearch_to_tsquery('portuguese', $2)) DESC
-         LIMIT 4`,
+        `SELECT kb.id, kb.content, kb.page, d.id AS document_id, d.filename
+           FROM knowledge_base kb
+           JOIN documents d ON d.id = kb.document_id
+          WHERE kb.condo_id = $1 AND d.status = 'processed' AND d.active
+            AND kb.search_vector @@ websearch_to_tsquery('portuguese', $2)
+          ORDER BY ts_rank(kb.search_vector, websearch_to_tsquery('portuguese', $2)) DESC
+          LIMIT 4`,
         [user.condo_id, searchTerms || question]
       );
 
@@ -130,7 +135,10 @@ Pergunta: "${question}"`;
         answer = "Não encontrei informações relevantes na base de conhecimento do seu condomínio sobre essa pergunta.";
       } else {
         const context = matches
-          .map((m: any, i: number) => `[Trecho ${i + 1}]\n${String(m.content).slice(0, 1500)}`)
+          .map(
+            (m: any, i: number) =>
+              `[Trecho ${i + 1} — ${m.filename}${m.page ? `, página ${m.page}` : ""}]\n${String(m.content).slice(0, 1500)}`
+          )
           .join("\n\n");
 
         answer = await groqChat(
@@ -138,10 +146,17 @@ Pergunta: "${question}"`;
           "Você é o CondoAgent, assistente de um condomínio. Responda de forma clara, educada e precisa baseado nos documentos fornecidos.",
           { model: MODEL_CHAT }
         );
+        const seen = new Set<string>();
+        for (const m of matches as any[]) {
+          const key = `${m.document_id}:${m.page ?? ""}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          sources.push({ document_id: m.document_id, filename: m.filename, page: m.page ?? null });
+        }
       }
     }
 
-    res.json({ answer, intent });
+    res.json({ answer, intent, sources });
   } catch (e: any) {
     console.error("chat error:", e);
     res.status(500).json({ error: e.message });

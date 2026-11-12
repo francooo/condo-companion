@@ -24,6 +24,8 @@ import HelpPage from "./pages/HelpPage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import DocumentsPage from "./pages/admin/DocumentsPage";
+import DocumentUploadPage from "./pages/admin/DocumentUploadPage";
+import DocumentDetailPage from "./pages/admin/DocumentDetailPage";
 import ResidentsPage from "./pages/admin/ResidentsPage";
 import FinancePage from "./pages/admin/FinancePage";
 import PlatformDashboardPage from "./pages/platform/PlatformDashboardPage";
@@ -88,6 +90,8 @@ const AppRoutes = () => (
     >
       <Route index element={<AdminDashboardPage />} />
       <Route path="documentos" element={<DocumentsPage />} />
+      <Route path="documentos/novo" element={<DocumentUploadPage />} />
+      <Route path="documentos/:docId" element={<DocumentDetailPage />} />
       <Route path="moradores" element={<ResidentsPage />} />
       <Route path="solicitacoes" element={<AccessRequestsPage />} />
       <Route path="financeiro" element={<FinancePage />} />
@@ -105,6 +109,9 @@ const AppRoutes = () => (
     >
       <Route index element={<PlatformDashboardPage />} />
       <Route path="condominios" element={<CondosPage />} />
+      <Route path="condominios/:condoId/documentos" element={<DocumentsPage />} />
+      <Route path="condominios/:condoId/documentos/novo" element={<DocumentUploadPage />} />
+      <Route path="condominios/:condoId/documentos/:docId" element={<DocumentDetailPage />} />
       <Route path="solicitacoes" element={<AccessRequestsPage />} />
       <Route path="perfil" element={<ProfilePage area="platform" />} />
     </Route>
