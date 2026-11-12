@@ -5,12 +5,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import AppShell from "@/components/layout/AppShell";
+import { hasApprovedAccess, homePathFor } from "@/components/layout/nav";
 import FullScreenLoader from "@/components/app/FullScreenLoader";
 import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
 import SetupPage from "./pages/SetupPage";
 import AuthCallbackPage from "./pages/AuthCallbackPage";
-import SelectCondoPage from "./pages/SelectCondoPage";
+import WelcomePage from "./pages/WelcomePage";
+import SignupPage from "./pages/SignupPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import FindCondoPage from "./pages/onboarding/FindCondoPage";
+import LinkConfirmPage from "./pages/onboarding/LinkConfirmPage";
+import MembershipStatusPage from "./pages/onboarding/MembershipStatusPage";
+import AccessRequestsPage from "./pages/admin/AccessRequestsPage";
 import ChatPage from "./pages/ChatPage";
 import HelpPage from "./pages/HelpPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -34,8 +42,8 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode;
   // Aguarda o perfil antes de checar papéis
   if (allowedRoles && !profile) return <FullScreenLoader />;
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) return <Navigate to="/" replace />;
-  // Morador/admin sem condomínio vinculado precisa passar pelo vínculo
-  if (profile && profile.role !== "superadmin" && !profile.condo_id) return <Navigate to="/vinculo" replace />;
+  // Sem vínculo aprovado: volta para a busca ou para a situação da solicitação
+  if (profile && !hasApprovedAccess(profile)) return <Navigate to={homePathFor(profile)} replace />;
 
   return <>{children}</>;
 };
@@ -43,10 +51,18 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode;
 const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<Index />} />
+    <Route path="/boas-vindas" element={<WelcomePage />} />
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/cadastro" element={<SignupPage />} />
+    <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
+    <Route path="/redefinir-senha/:token" element={<ResetPasswordPage />} />
     <Route path="/setup" element={<SetupPage />} />
     <Route path="/auth/callback" element={<AuthCallbackPage />} />
-    <Route path="/vinculo" element={<SelectCondoPage />} />
+
+    {/* Vínculo com o condomínio */}
+    <Route path="/vinculo" element={<FindCondoPage />} />
+    <Route path="/vinculo/status" element={<MembershipStatusPage />} />
+    <Route path="/vinculo/:condoId" element={<LinkConfirmPage />} />
 
     {/* Morador */}
     <Route
@@ -73,6 +89,7 @@ const AppRoutes = () => (
       <Route index element={<AdminDashboardPage />} />
       <Route path="documentos" element={<DocumentsPage />} />
       <Route path="moradores" element={<ResidentsPage />} />
+      <Route path="solicitacoes" element={<AccessRequestsPage />} />
       <Route path="financeiro" element={<FinancePage />} />
       <Route path="perfil" element={<ProfilePage area="admin" />} />
     </Route>
@@ -88,6 +105,7 @@ const AppRoutes = () => (
     >
       <Route index element={<PlatformDashboardPage />} />
       <Route path="condominios" element={<CondosPage />} />
+      <Route path="solicitacoes" element={<AccessRequestsPage />} />
       <Route path="perfil" element={<ProfilePage area="platform" />} />
     </Route>
 

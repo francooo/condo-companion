@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
-import { api, Profile, setOnUnauthorized } from "@/lib/api";
+import { api, Profile, setOnMembershipRequired, setOnUnauthorized } from "@/lib/api";
 import { getToken, setToken as persistToken, clearToken } from "@/lib/auth-storage";
 
 interface AuthUser {
@@ -50,6 +50,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       signOut();
     }
   }, [signOut]);
+
+  useEffect(() => {
+    setOnMembershipRequired(() => {
+      void refreshProfile();
+    });
+  }, [refreshProfile]);
 
   useEffect(() => {
     setOnUnauthorized(() => applyProfile(null));

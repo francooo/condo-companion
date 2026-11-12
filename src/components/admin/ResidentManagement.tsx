@@ -104,11 +104,12 @@ const ResidentManagement = () => {
     return residents.filter(
       (r) =>
         (filter === "all" || (filter === "active" ? r.active : !r.active)) &&
-        (!q || (r.full_name ?? "").toLowerCase().includes(q)),
+        (!q || [r.full_name, r.email, r.unit].some((v) => v?.toLowerCase().includes(q))),
     );
   }, [residents, search, filter]);
 
   const roleLabel = (r: Resident) => (r.role === "admin" ? "Síndico" : "Morador");
+  const unitLabel = (r: Resident) => [r.unit && `Unid. ${r.unit}`, r.block && `Bl. ${r.block}`].filter(Boolean).join(" · ");
   const canToggle = (r: Resident) => r.id !== profile?.id;
 
   return (
@@ -152,7 +153,7 @@ const ResidentManagement = () => {
                   key={r.id}
                   leading={<Avatar name={r.full_name} />}
                   title={r.full_name || "—"}
-                  meta={`${roleLabel(r)} · desde ${dateFmt.format(new Date(r.created_at))}`}
+                  meta={[roleLabel(r), unitLabel(r), `desde ${dateFmt.format(new Date(r.member_since))}`].filter(Boolean).join(" · ")}
                   trailing={
                     <div className="flex items-center gap-3">
                       <StatusPill status={r.active ? "active" : "inactive"} />
@@ -175,6 +176,7 @@ const ResidentManagement = () => {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Perfil</TableHead>
+                  <TableHead>Unidade</TableHead>
                   <TableHead>Vínculo desde</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Acesso</TableHead>
@@ -186,11 +188,15 @@ const ResidentManagement = () => {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar name={r.full_name} />
-                        <span className="font-semibold">{r.full_name || "—"}</span>
+                        <div className="min-w-0">
+                          <p className="font-semibold">{r.full_name || "—"}</p>
+                          <p className="truncate text-xs text-muted-foreground">{r.email}</p>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>{roleLabel(r)}</TableCell>
-                    <TableCell>{dateFmt.format(new Date(r.created_at))}</TableCell>
+                    <TableCell>{unitLabel(r) || "—"}</TableCell>
+                    <TableCell>{dateFmt.format(new Date(r.member_since))}</TableCell>
                     <TableCell>
                       <StatusPill status={r.active ? "active" : "inactive"} />
                     </TableCell>

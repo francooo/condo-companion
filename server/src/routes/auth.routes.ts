@@ -1,21 +1,30 @@
+import { createHash, randomBytes } from "crypto";
 import { Router } from "express";
 import { query } from "../db.js";
 import { hashPassword, verifyPassword, signToken, signState, verifyState } from "../lib/auth.js";
 import { buildGoogleAuthUrl, exchangeCodeForProfile } from "../lib/google-oauth.js";
-import { requireAuth } from "../middleware/auth.js";
+import { frontendUrl, sendMail } from "../lib/mail.js";
+import { requireAccount } from "../middleware/auth.js";
 
 const router = Router();
 
-function publicUser(row: any) {
-  return {
-    id: row.id,
-    email: row.email,
-    condo_id: row.condo_id,
-    role: row.role,
-    full_name: row.full_name,
-    active: row.active,
-  };
+const MIN_PASSWORD = 6;
+const RESET_TTL_MINUTES = 60;
+
+/** Dados do usuário expostos ao cliente (inclui o nome do condomínio vinculado/solicitado). */
+export async function loadPublicUser(id: string) {
+  const { rows } = await query(
+    `SELECT u.id, u.email, u.condo_id, u.role, u.full_name, u.active, u.phone, u.unit, u.block,
+            u.membership_status, c.name AS condo_name
+       FROM users u LEFT JOIN condos c ON c.id = u.condo_id
+      WHERE u.id = $1`,
+    [id]
+  );
+  return rows[0] ?? null;
 }
+
+const normalizeEmail = (email: unknown) => String(email ?? "").trim().toLowerCase();
+const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
 router.post("/bootstrap-superadmin", async (req, res) => {
   try {
@@ -33,13 +42,12 @@ router.post("/bootstrap-superadmin", async (req, res) => {
     const { rows } = await query(
       `INSERT INTO users (email, password_hash, role, full_name, active)
        VALUES ($1, $2, 'superadmin', $3, true)
-       RETURNING id, email, condo_id, role, full_name, active`,
-      [String(email).trim().toLowerCase(), passwordHash, full_name || "Superadmin"]
+       RETURNING id, role, condo_id`,
+      [normalizeEmail(email), passwordHash, full_name || "Superadmin"]
     );
 
-    const user = rows[0];
-    const token = signToken({ sub: user.id, role: user.role, condo_id: user.condo_id });
-    res.json({ token, user: publicUser(user) });
+    const token = signToken({ sub: rows[0].id, role: rows[0].role, condo_id: rows[0].condo_id });
+    res.json({ token, user: await loadPublicUser(rows[0].id) });
   } catch (e: any) {
     if (e.code === "23505") return res.status(400).json({ error: "E-mail já cadastrado." });
     console.error("bootstrap-superadmin error:", e);
@@ -47,72 +55,58 @@ router.post("/bootstrap-superadmin", async (req, res) => {
   }
 });
 
+/** Login por e-mail e senha. O condomínio vem do vínculo da conta; não é informado no login. */
 router.post("/login", async (req, res) => {
   try {
-    const { email, password, condo_identifier } = req.body;
+    const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
     }
 
-    const { rows } = await query("SELECT * FROM users WHERE email = $1", [
-      String(email).trim().toLowerCase(),
+    const { rows } = await query("SELECT id, role, condo_id, password_hash, active FROM users WHERE email = $1", [
+      normalizeEmail(email),
     ]);
     const user = rows[0];
-    if (!user || !user.password_hash) {
+    if (!user || !user.password_hash || !(await verifyPassword(password, user.password_hash))) {
       return res.status(401).json({ error: "E-mail ou senha inválidos." });
     }
-
-    const valid = await verifyPassword(password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: "E-mail ou senha inválidos." });
-    if (!user.active) return res.status(403).json({ error: "Sua conta está desativada. Contate o síndico." });
-
-    if (user.role !== "superadmin") {
-      if (!condo_identifier || !String(condo_identifier).trim()) {
-        return res.status(400).json({ error: "Informe o identificador do condomínio." });
-      }
-
-      const { rows: condoRows } = await query("SELECT id, name FROM condos WHERE identifier = $1", [
-        String(condo_identifier).trim().toLowerCase(),
-      ]);
-      const condo = condoRows[0];
-      if (!condo) return res.status(404).json({ error: "Condomínio não encontrado. Verifique o identificador." });
-      if (user.condo_id !== condo.id) {
-        return res.status(403).json({ error: "Você não pertence a este condomínio." });
-      }
-    }
+    if (!user.active) return res.status(403).json({ error: "Sua conta está desativada. Contate a administração do condomínio." });
 
     const token = signToken({ sub: user.id, role: user.role, condo_id: user.condo_id });
-    res.json({ token, user: publicUser(user) });
+    res.json({ token, user: await loadPublicUser(user.id) });
   } catch (e: any) {
     console.error("login error:", e);
     res.status(500).json({ error: e.message });
   }
 });
 
+/**
+ * Cadastro de morador. A conta nasce sem vínculo: o condomínio é escolhido depois,
+ * em uma solicitação que a administração precisa aprovar.
+ */
 router.post("/signup", async (req, res) => {
   try {
-    const { email, password, full_name, condo_identifier } = req.body;
-    if (!email || !password || !condo_identifier) {
-      return res.status(400).json({ error: "E-mail, senha e identificador do condomínio são obrigatórios." });
+    const { email, password, full_name, phone, accept_terms } = req.body;
+    if (!email || !password || !full_name) {
+      return res.status(400).json({ error: "Nome, e-mail e senha são obrigatórios." });
     }
-
-    const { rows: condoRows } = await query("SELECT id FROM condos WHERE identifier = $1", [
-      String(condo_identifier).trim().toLowerCase(),
-    ]);
-    const condo = condoRows[0];
-    if (!condo) return res.status(404).json({ error: "Condomínio não encontrado." });
+    if (String(password).length < MIN_PASSWORD) {
+      return res.status(400).json({ error: `A senha deve ter pelo menos ${MIN_PASSWORD} caracteres.` });
+    }
+    if (accept_terms !== true) {
+      return res.status(400).json({ error: "É preciso aceitar os termos de uso para criar a conta." });
+    }
 
     const passwordHash = await hashPassword(password);
     const { rows } = await query(
-      `INSERT INTO users (email, password_hash, condo_id, role, full_name, active)
-       VALUES ($1, $2, $3, 'resident', $4, true)
-       RETURNING id, email, condo_id, role, full_name, active`,
-      [String(email).trim().toLowerCase(), passwordHash, condo.id, full_name || null]
+      `INSERT INTO users (email, password_hash, condo_id, role, full_name, phone, active, membership_status, terms_accepted_at)
+       VALUES ($1, $2, NULL, 'resident', $3, $4, true, NULL, now())
+       RETURNING id, role, condo_id`,
+      [normalizeEmail(email), passwordHash, String(full_name).trim(), phone ? String(phone).trim() : null]
     );
 
-    const user = rows[0];
-    const token = signToken({ sub: user.id, role: user.role, condo_id: user.condo_id });
-    res.json({ token, user: publicUser(user) });
+    const token = signToken({ sub: rows[0].id, role: rows[0].role, condo_id: rows[0].condo_id });
+    res.json({ token, user: await loadPublicUser(rows[0].id) });
   } catch (e: any) {
     if (e.code === "23505") return res.status(400).json({ error: "E-mail já cadastrado." });
     console.error("signup error:", e);
@@ -120,68 +114,123 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-router.get("/me", requireAuth, async (req, res) => {
-  const user = req.user!;
-  let condoName: string | null = null;
-  if (user.condo_id) {
-    const { rows } = await query("SELECT name FROM condos WHERE id = $1", [user.condo_id]);
-    condoName = rows[0]?.name ?? null;
-  }
-  res.json({ user: { ...publicUser(user), condo_name: condoName } });
+router.get("/me", requireAccount, async (req, res) => {
+  res.json({ user: await loadPublicUser(req.user!.id) });
 });
 
-router.get("/google", (req, res) => {
-  const condoIdentifier = typeof req.query.condo_identifier === "string" ? req.query.condo_identifier : undefined;
-  const state = signState({ condo_identifier: condoIdentifier });
-  res.redirect(buildGoogleAuthUrl(state));
+/** Sempre responde 200, exista ou não a conta, para não revelar quais e-mails estão cadastrados. */
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    if (!email) return res.status(400).json({ error: "Informe seu e-mail." });
+
+    const { rows } = await query("SELECT id, full_name, active FROM users WHERE email = $1", [email]);
+    const user = rows[0];
+
+    if (user?.active) {
+      // Evita disparos repetidos: no máximo um link por minuto por conta.
+      const { rows: recent } = await query(
+        "SELECT 1 FROM password_resets WHERE user_id = $1 AND created_at > now() - interval '1 minute'",
+        [user.id]
+      );
+      if (recent.length === 0) {
+        const token = randomBytes(32).toString("hex");
+        await query(
+          `INSERT INTO password_resets (user_id, token_hash, expires_at)
+           VALUES ($1, $2, now() + ($3 || ' minutes')::interval)`,
+          [user.id, hashToken(token), String(RESET_TTL_MINUTES)]
+        );
+        const link = `${frontendUrl()}/redefinir-senha/${token}`;
+        await sendMail({
+          to: email,
+          subject: "Redefinição de senha · Condo App",
+          text:
+            `Olá${user.full_name ? `, ${user.full_name}` : ""}!\n\n` +
+            `Recebemos um pedido para redefinir a senha da sua conta. Use o link abaixo em até ${RESET_TTL_MINUTES} minutos:\n\n` +
+            `${link}\n\nSe você não fez este pedido, ignore este e-mail.`,
+        });
+      }
+    }
+
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("forgot-password error:", e);
+    res.status(500).json({ error: "Não foi possível processar a solicitação agora. Tente novamente." });
+  }
+});
+
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: "Token e nova senha são obrigatórios." });
+    if (String(password).length < MIN_PASSWORD) {
+      return res.status(400).json({ error: `A senha deve ter pelo menos ${MIN_PASSWORD} caracteres.` });
+    }
+
+    const { rows } = await query(
+      `SELECT id, user_id FROM password_resets
+        WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()`,
+      [hashToken(String(token))]
+    );
+    const reset = rows[0];
+    if (!reset) return res.status(400).json({ error: "Link inválido ou expirado. Solicite uma nova recuperação." });
+
+    await query("UPDATE users SET password_hash = $1 WHERE id = $2", [await hashPassword(password), reset.user_id]);
+    // Invalida este e quaisquer outros links pendentes da mesma conta.
+    await query("UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [reset.user_id]);
+
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error("reset-password error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get("/google", (_req, res) => {
+  res.redirect(buildGoogleAuthUrl(signState({})));
 });
 
 router.get("/google/callback", async (req, res) => {
-  const frontendUrl = process.env.CORS_ORIGIN?.split(",")[0] ?? "http://localhost:8080";
+  const front = frontendUrl();
   try {
     const { code, state } = req.query;
     if (typeof code !== "string" || typeof state !== "string") {
       throw new Error("Parâmetros inválidos");
     }
 
-    const { condo_identifier } = verifyState<{ condo_identifier?: string }>(state);
+    verifyState(state);
     const profile = await exchangeCodeForProfile(code);
     if (!profile.emailVerified) throw new Error("E-mail do Google não verificado");
 
-    let { rows } = await query("SELECT * FROM users WHERE google_id = $1", [profile.googleId]);
+    let { rows } = await query("SELECT id, role, condo_id, active FROM users WHERE google_id = $1", [profile.googleId]);
     let user = rows[0];
 
     if (!user) {
-      ({ rows } = await query("SELECT * FROM users WHERE email = $1", [profile.email]));
+      ({ rows } = await query("SELECT id, role, condo_id, active FROM users WHERE email = $1", [profile.email]));
       user = rows[0];
 
       if (user) {
         await query("UPDATE users SET google_id = $1 WHERE id = $2", [profile.googleId, user.id]);
       } else {
-        let condoId: string | null = null;
-        if (condo_identifier) {
-          const { rows: condoRows } = await query("SELECT id FROM condos WHERE identifier = $1", [
-            condo_identifier.trim().toLowerCase(),
-          ]);
-          condoId = condoRows[0]?.id ?? null;
-        }
+        // Conta nova sem vínculo: o morador escolhe o condomínio e aguarda aprovação.
         ({ rows } = await query(
-          `INSERT INTO users (email, google_id, condo_id, role, full_name, active)
-           VALUES ($1, $2, $3, 'resident', $4, true)
-           RETURNING *`,
-          [profile.email, profile.googleId, condoId, profile.name]
+          // Os termos são aceitos depois, na solicitação de vínculo.
+          `INSERT INTO users (email, google_id, condo_id, role, full_name, active, membership_status)
+           VALUES ($1, $2, NULL, 'resident', $3, true, NULL)
+           RETURNING id, role, condo_id, active`,
+          [profile.email, profile.googleId, profile.name]
         ));
         user = rows[0];
       }
     }
 
-    if (!user.active) throw new Error("Sua conta está desativada. Contate o síndico.");
+    if (!user.active) throw new Error("Sua conta está desativada. Contate a administração do condomínio.");
 
     const token = signToken({ sub: user.id, role: user.role, condo_id: user.condo_id });
-    res.redirect(`${frontendUrl}/auth/callback#token=${token}`);
+    res.redirect(`${front}/auth/callback#token=${token}`);
   } catch (e: any) {
     console.error("google callback error:", e);
-    res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(e.message || "Erro ao entrar com Google")}`);
+    res.redirect(`${front}/login?error=${encodeURIComponent(e.message || "Erro ao entrar com Google")}`);
   }
 });
 

@@ -4,11 +4,15 @@ const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
+
+export type MembershipStatus = "pending" | "approved" | "rejected" | "suspended" | null;
 
 export interface Profile {
   id: string;
@@ -18,22 +22,66 @@ export interface Profile {
   full_name: string | null;
   active: boolean;
   condo_name?: string | null;
+  phone?: string | null;
+  unit?: string | null;
+  block?: string | null;
+  membership_status: MembershipStatus;
 }
 
-export interface Condo {
+export interface CondoSummary {
   id: string;
   name: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+}
+
+export interface Condo extends CondoSummary {
   identifier: string;
   created_at: string;
   doc_count?: number;
+  resident_count?: number;
+  pending_count?: number;
+}
+
+export interface Membership {
+  status: MembershipStatus;
+  unit: string | null;
+  block: string | null;
+  requested_at: string | null;
+  decided_at: string | null;
+  decision_reason: string | null;
+  terms_accepted: boolean;
+  condo: CondoSummary | null;
+}
+
+export interface AccessRequest {
+  id: string;
+  full_name: string | null;
+  email: string;
+  phone: string | null;
+  unit: string | null;
+  block: string | null;
+  invite_code: string | null;
+  status: "pending" | "approved" | "rejected";
+  requested_at: string;
+  decided_at: string | null;
+  decision_reason: string | null;
+  condo_id: string;
+  condo_name: string;
 }
 
 export interface Resident {
   id: string;
   full_name: string | null;
+  email: string;
+  unit: string | null;
+  block: string | null;
   role: string;
   active: boolean;
+  membership_status: MembershipStatus;
   created_at: string;
+  member_since: string;
 }
 
 export interface FinancialRecord {
@@ -48,6 +96,12 @@ export interface FinancialRecord {
 let onUnauthorized: (() => void) | null = null;
 export function setOnUnauthorized(cb: () => void) {
   onUnauthorized = cb;
+}
+
+/** Chamado quando o servidor recusa por falta de vínculo aprovado (ex.: acesso suspenso durante o uso). */
+let onMembershipRequired: (() => void) | null = null;
+export function setOnMembershipRequired(cb: () => void) {
+  onMembershipRequired = cb;
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -68,7 +122,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new ApiError(body.error || `Erro ${res.status}`, res.status);
+    if (res.status === 403 && body.code === "membership_required") onMembershipRequired?.();
+    throw new ApiError(body.error || `Erro ${res.status}`, res.status, body.code);
   }
 
   if (res.status === 204) return undefined as T;
@@ -77,12 +132,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   auth: {
-    login: (data: { email: string; password: string; condo_identifier?: string }) =>
+    login: (data: { email: string; password: string }) =>
       request<{ token: string; user: Profile }>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    signup: (data: { email: string; password: string; full_name: string; condo_identifier: string }) =>
+    signup: (data: { email: string; password: string; full_name: string; phone?: string; accept_terms: boolean }) =>
       request<{ token: string; user: Profile }>("/api/auth/signup", {
         method: "POST",
         body: JSON.stringify(data),
@@ -93,22 +148,31 @@ export const api = {
         body: JSON.stringify(data),
       }),
     me: () => request<{ user: Profile }>("/api/auth/me"),
-    googleUrl: (condoIdentifier?: string) =>
-      `${API_URL}/api/auth/google${condoIdentifier ? `?condo_identifier=${encodeURIComponent(condoIdentifier)}` : ""}`,
+    forgotPassword: (email: string) =>
+      request<{ success: boolean }>("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+    resetPassword: (token: string, password: string) =>
+      request<{ success: boolean }>("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
+    googleUrl: () => `${API_URL}/api/auth/google`,
   },
   condos: {
-    lookup: (identifier: string) =>
-      request<{ condo: { id: string; name: string } }>(`/api/condos/lookup?identifier=${encodeURIComponent(identifier)}`),
+    search: (q: string) => request<{ condos: CondoSummary[] }>(`/api/condos/search?q=${encodeURIComponent(q)}`),
+    summary: (id: string) => request<{ condo: CondoSummary }>(`/api/condos/${encodeURIComponent(id)}/summary`),
     list: () => request<{ condos: Condo[] }>("/api/condos"),
-    create: (data: { name: string; identifier: string }) =>
+    create: (data: { name: string; identifier: string; address?: string; city?: string; state?: string }) =>
       request<{ condo: Condo }>("/api/condos", { method: "POST", body: JSON.stringify(data) }),
   },
-  me: {
-    linkCondo: (identifier: string) =>
-      request<{ success: boolean; condo: { id: string; name: string } }>("/api/me/condo", {
-        method: "POST",
-        body: JSON.stringify({ identifier }),
-      }),
+  membership: {
+    get: () => request<{ membership: Membership }>("/api/me/membership"),
+    request: (data: { condo_id: string; unit: string; block?: string; invite_code?: string; accept_terms?: boolean }) =>
+      request<{ success: boolean }>("/api/me/membership-request", { method: "POST", body: JSON.stringify(data) }),
+    cancel: () => request<{ success: boolean }>("/api/me/membership-request", { method: "DELETE" }),
+  },
+  accessRequests: {
+    list: (status: "pending" | "approved" | "rejected" = "pending") =>
+      request<{ requests: AccessRequest[] }>(`/api/access-requests?status=${status}`),
+    approve: (id: string) => request<{ success: boolean }>(`/api/access-requests/${id}/approve`, { method: "POST" }),
+    reject: (id: string, reason?: string) =>
+      request<{ success: boolean }>(`/api/access-requests/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) }),
   },
   residents: {
     list: () => request<{ residents: Resident[] }>("/api/residents"),

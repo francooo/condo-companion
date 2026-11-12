@@ -53,6 +53,16 @@ const ProfilePage = ({ area }: { area: ShellArea }) => {
           <FormField label="E-mail" htmlFor="profile-email">
             <Input id="profile-email" value={profile.email} readOnly disabled />
           </FormField>
+          {profile.phone && (
+            <FormField label="Celular" htmlFor="profile-phone">
+              <Input id="profile-phone" value={profile.phone} readOnly disabled />
+            </FormField>
+          )}
+          {profile.unit && (
+            <FormField label="Unidade" htmlFor="profile-unit">
+              <Input id="profile-unit" value={[profile.unit, profile.block && `Bloco ${profile.block}`].filter(Boolean).join(" · ")} readOnly disabled />
+            </FormField>
+          )}
         </div>
       </SectionCard>
 

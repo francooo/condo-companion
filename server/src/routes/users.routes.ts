@@ -8,8 +8,13 @@ const router = Router();
 router.get("/residents", requireAuth, requireRole("admin", "superadmin"), async (req, res) => {
   const condoId = req.user!.condo_id;
   if (!condoId) return res.json({ residents: [] });
+  // Solicitações pendentes/recusadas ficam em /access-requests, não na lista de moradores.
   const { rows } = await query(
-    "SELECT id, full_name, role, active, created_at FROM users WHERE condo_id = $1 ORDER BY created_at DESC",
+    `SELECT id, full_name, email, unit, block, role, active, membership_status, created_at,
+            COALESCE(decided_at, created_at) AS member_since
+       FROM users
+      WHERE condo_id = $1 AND membership_status IN ('approved', 'suspended')
+      ORDER BY created_at DESC`,
     [condoId]
   );
   res.json({ residents: rows });
@@ -64,28 +69,6 @@ router.post("/admins", requireAuth, requireRole("superadmin"), async (req, res) 
     if (e.code === "23505") return res.status(400).json({ error: "E-mail já cadastrado." });
     console.error("create admin error:", e);
     res.status(400).json({ error: e.message });
-  }
-});
-
-router.post("/me/condo", requireAuth, async (req, res) => {
-  try {
-    const { identifier } = req.body;
-    const { rows: condoRows } = await query("SELECT id, name FROM condos WHERE identifier = $1", [
-      String(identifier).trim().toLowerCase(),
-    ]);
-    const condo = condoRows[0];
-    if (!condo) return res.status(404).json({ error: "Condomínio não encontrado. Verifique o identificador." });
-
-    const { rowCount } = await query(
-      "UPDATE users SET condo_id = $1 WHERE id = $2 AND condo_id IS NULL",
-      [condo.id, req.user!.id]
-    );
-    if (rowCount === 0) return res.status(400).json({ error: "Usuário já está vinculado a um condomínio." });
-
-    res.json({ success: true, condo });
-  } catch (e: any) {
-    console.error("link condo error:", e);
-    res.status(500).json({ error: e.message });
   }
 });
 

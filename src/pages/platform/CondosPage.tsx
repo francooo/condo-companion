@@ -31,14 +31,23 @@ const CreateCondoDialog = ({ open, onOpenChange }: { open: boolean; onOpenChange
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
+  const [address, setAddress] = useState({ address: "", city: "", state: "" });
 
   const create = useMutation({
-    mutationFn: () => api.condos.create({ name: name.trim(), identifier: slugify(slug) }),
+    mutationFn: () =>
+      api.condos.create({
+        name: name.trim(),
+        identifier: slugify(slug),
+        address: address.address.trim() || undefined,
+        city: address.city.trim() || undefined,
+        state: address.state.trim() || undefined,
+      }),
     onSuccess: () => {
       toast.success("Condomínio cadastrado!");
       setName("");
       setSlug("");
       setSlugTouched(false);
+      setAddress({ address: "", city: "", state: "" });
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ["condos"] });
     },
@@ -83,6 +92,17 @@ const CreateCondoDialog = ({ open, onOpenChange }: { open: boolean; onOpenChange
               required
             />
           </FormField>
+          <FormField label="Endereço" htmlFor="condo-address" hint="Ajuda os moradores a encontrarem o condomínio na busca.">
+            <Input id="condo-address" placeholder="Rua das Acácias, 240" value={address.address} onChange={(e) => setAddress({ ...address, address: e.target.value })} />
+          </FormField>
+          <div className="grid grid-cols-[1fr_5rem] gap-3">
+            <FormField label="Cidade" htmlFor="condo-city">
+              <Input id="condo-city" placeholder="São Paulo" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
+            </FormField>
+            <FormField label="UF" htmlFor="condo-state">
+              <Input id="condo-state" placeholder="SP" maxLength={2} value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })} />
+            </FormField>
+          </div>
           <Button type="submit" className="w-full" disabled={create.isPending}>
             {create.isPending && <Loader2 className="animate-spin" />}
             Cadastrar condomínio
@@ -220,8 +240,9 @@ const CondosPage = () => {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{c.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {c.identifier} · {c.doc_count ?? 0} trechos indexados
+                        {[c.city, `${c.resident_count ?? 0} moradores`, `${c.doc_count ?? 0} trechos`].filter(Boolean).join(" · ")}
                       </p>
+                      {(c.pending_count ?? 0) > 0 && <p className="text-sm font-semibold text-warning">{c.pending_count} solicitações pendentes</p>}
                     </div>
                   </div>
                   {rowActions(c)}
@@ -232,7 +253,8 @@ const CondosPage = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Condomínio</TableHead>
-                  <TableHead>Identificador</TableHead>
+                  <TableHead>Cidade</TableHead>
+                  <TableHead>Moradores</TableHead>
                   <TableHead>Base de conhecimento</TableHead>
                   <TableHead>Criado em</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -244,10 +266,17 @@ const CondosPage = () => {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <CondoBadge name={c.name} size="sm" />
-                        <span className="font-semibold">{c.name}</span>
+                        <div>
+                          <p className="font-semibold">{c.name}</p>
+                          <p className="text-xs text-muted-foreground">{c.identifier}</p>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{c.identifier}</TableCell>
+                    <TableCell className="text-muted-foreground">{[c.city, c.state].filter(Boolean).join(" · ") || "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {c.resident_count ?? 0}
+                      {(c.pending_count ?? 0) > 0 && <span className="ml-2 text-xs font-semibold text-warning">+{c.pending_count} pendentes</span>}
+                    </TableCell>
                     <TableCell>{c.doc_count ?? 0} trechos</TableCell>
                     <TableCell className="whitespace-nowrap">{dateFmt.format(new Date(c.created_at))}</TableCell>
                     <TableCell>

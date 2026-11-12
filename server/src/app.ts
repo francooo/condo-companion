@@ -8,6 +8,7 @@ import usersRoutes from "./routes/users.routes.js";
 import financialRoutes from "./routes/financial.routes.js";
 import documentsRoutes from "./routes/documents.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
+import membershipRoutes from "./routes/membership.routes.js";
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/condos", condosRoutes);
 app.use("/api", usersRoutes);
+app.use("/api", membershipRoutes);
 app.use("/api/financial-records", financialRoutes);
 app.use("/api/documents", documentsRoutes);
 app.use("/api/chat", chatRoutes);
