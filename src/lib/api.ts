@@ -27,9 +27,29 @@ export interface Profile {
   block?: string | null;
   membership_status: MembershipStatus;
   preferences?: Preferences;
+  /** Identidade visual do condomínio (só com vínculo aprovado). */
+  condo_branding?: Branding | null;
   /** Falso em contas criadas pelo Google que ainda não definiram senha. */
   has_password?: boolean;
 }
+
+export interface Branding {
+  display_name: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+  logo_url: string | null;
+  cover_url: string | null;
+}
+
+export interface BrandingDetail extends Branding {
+  condo_id: string;
+  name: string;
+  updated_at: string | null;
+  updated_by_name: string | null;
+}
+
+/** URL absoluta para caminhos da API usados em <img> (logotipo, capa). */
+export const assetUrl = (path: string | null | undefined) => (path ? `${API_URL}${path}` : null);
 
 export interface Preferences {
   text_size?: "normal" | "large";
@@ -42,12 +62,16 @@ export interface CondoSummary {
   address: string | null;
   city: string | null;
   state: string | null;
+  primary_color?: string | null;
+  logo_url?: string | null;
 }
 
 export interface Condo extends CondoSummary {
   identifier: string;
   created_at: string;
   doc_count?: number;
+  display_name?: string | null;
+  cover_url?: string | null;
   resident_count?: number;
   pending_count?: number;
 }
@@ -406,6 +430,20 @@ export const api = {
       }),
     retry: (messageId: string) =>
       request<{ assistant_message: ChatMessageRecord }>(`/api/chat/messages/${messageId}/retry`, { method: "POST" }),
+  },
+  branding: {
+    get: (condoId: string) => request<{ branding: BrandingDetail }>(`/api/condos/${condoId}/branding`),
+    update: (condoId: string, data: { display_name: string; primary_color: string | null; secondary_color: string | null }) =>
+      request<{ branding: BrandingDetail }>(`/api/condos/${condoId}/branding`, { method: "PUT", body: JSON.stringify(data) }),
+    upload: (condoId: string, slot: "logo" | "cover", file: File) =>
+      request<{ branding: BrandingDetail }>(`/api/condos/${condoId}/branding/${slot}`, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+      }),
+    removeImage: (condoId: string, slot: "logo" | "cover") =>
+      request<{ branding: BrandingDetail }>(`/api/condos/${condoId}/branding/${slot}`, { method: "DELETE" }),
+    restore: (condoId: string) => request<{ branding: BrandingDetail }>(`/api/condos/${condoId}/branding/restore`, { method: "POST" }),
   },
   agent: {
     get: (condoId?: string) => request<{ agent: AgentPublic }>(`/api/agent${withCondo(condoId)}`),

@@ -58,7 +58,9 @@
 
     /* Identidade do condomínio (sobrescrita por tenant) */
     --tenant-primary: var(--primary);
+    --tenant-foreground: var(--primary-foreground);
     --tenant-secondary: var(--foreground);
+    --tenant-secondary-foreground: var(--background);
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 9%;

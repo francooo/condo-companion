@@ -1,10 +1,13 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { requireAccount, requireAuth, requireRole } from "../middleware/auth.js";
+import { fileUrl } from "../lib/branding.js";
 
 const router = Router();
 
-const PUBLIC_FIELDS = "id, name, address, city, state";
+const PUBLIC_FIELDS = "id, COALESCE(display_name, name) AS name, address, city, state, primary_color, logo_file_id";
+/** Dados de identificação + logotipo e cor, para os cartões da busca. */
+const publicCondo = ({ logo_file_id, ...c }: Record<string, unknown>) => ({ ...c, logo_url: fileUrl(logo_file_id as string | null) });
 const clean = (v: unknown, max = 160) => {
   const s = String(v ?? "").trim();
   return s ? s.slice(0, max) : null;
@@ -20,17 +23,17 @@ router.get("/search", requireAccount, async (req, res) => {
   let where = "status = 'active'";
   if (q) {
     params.push(`%${q.replace(/[%_\\]/g, "\\$&")}%`);
-    where += ` AND (name ILIKE $1 OR identifier ILIKE $1 OR address ILIKE $1 OR city ILIKE $1)`;
+    where += ` AND (name ILIKE $1 OR display_name ILIKE $1 OR identifier ILIKE $1 OR address ILIKE $1 OR city ILIKE $1)`;
   }
-  const { rows } = await query(`SELECT ${PUBLIC_FIELDS} FROM condos WHERE ${where} ORDER BY name LIMIT 30`, params);
-  res.json({ condos: rows });
+  const { rows } = await query(`SELECT ${PUBLIC_FIELDS} FROM condos WHERE ${where} ORDER BY 2 LIMIT 30`, params);
+  res.json({ condos: rows.map(publicCondo) });
 });
 
 router.get("/:id/summary", requireAccount, async (req, res) => {
   if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(404).json({ error: "Condomínio não encontrado." });
   const { rows } = await query(`SELECT ${PUBLIC_FIELDS} FROM condos WHERE id = $1 AND status = 'active'`, [req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: "Condomínio não encontrado." });
-  res.json({ condo: rows[0] });
+  res.json({ condo: publicCondo(rows[0]) });
 });
 
 router.get("/", requireAuth, requireRole("superadmin"), async (_req, res) => {
@@ -49,7 +52,7 @@ router.get("/", requireAuth, requireRole("superadmin"), async (_req, res) => {
       ) m ON m.condo_id = c.id
      ORDER BY c.created_at DESC
   `);
-  res.json({ condos: rows });
+  res.json({ condos: rows.map(({ logo_file_id, cover_file_id, ...c }) => ({ ...c, logo_url: fileUrl(logo_file_id), cover_url: fileUrl(cover_file_id) })) });
 });
 
 router.post("/", requireAuth, requireRole("superadmin"), async (req, res) => {

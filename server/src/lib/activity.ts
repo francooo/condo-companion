@@ -11,7 +11,9 @@ export type ActivityType =
   | "membership.added"
   | "agent.updated"
   | "agent.enabled"
-  | "agent.disabled";
+  | "agent.disabled"
+  | "branding.updated"
+  | "branding.restored";
 
 /**
  * Registra um evento no histórico. Falhar aqui não deve desfazer a ação principal

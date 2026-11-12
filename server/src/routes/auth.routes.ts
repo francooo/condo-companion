@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import { Router } from "express";
+import { brandingColumns, toBranding } from "../lib/branding.js";
 import { query } from "../db.js";
 import { hashPassword, verifyPassword, signToken, signState, verifyState } from "../lib/auth.js";
 import { buildGoogleAuthUrl, exchangeCodeForProfile } from "../lib/google-oauth.js";
@@ -15,12 +16,17 @@ const RESET_TTL_MINUTES = 60;
 export async function loadPublicUser(id: string) {
   const { rows } = await query(
     `SELECT u.id, u.email, u.condo_id, u.role, u.full_name, u.active, u.phone, u.unit, u.block,
-            u.membership_status, u.preferences, (u.password_hash IS NOT NULL) AS has_password, c.name AS condo_name
+            u.membership_status, u.preferences, (u.password_hash IS NOT NULL) AS has_password,
+            COALESCE(c.display_name, c.name) AS condo_name, ${brandingColumns("c")}
        FROM users u LEFT JOIN condos c ON c.id = u.condo_id
       WHERE u.id = $1`,
     [id]
   );
-  return rows[0] ?? null;
+  const r = rows[0];
+  if (!r) return null;
+  const { display_name: _d, primary_color: _p, secondary_color: _s, logo_file_id: _l, cover_file_id: _c, ...user } = r;
+  // Identidade visual só faz sentido com vínculo aprovado; antes disso o app usa o visual padrão.
+  return { ...user, condo_branding: r.condo_id && r.membership_status === "approved" ? toBranding(r) : null };
 }
 
 const normalizeEmail = (email: unknown) => String(email ?? "").trim().toLowerCase();

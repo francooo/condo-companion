@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { BrandLogo } from "@/components/app/Brand";
 import CondoBadge from "@/components/app/CondoBadge";
 import { cn } from "@/lib/utils";
+import { tenantStyle } from "@/lib/color";
 import { AREA_LABEL, NAV, type NavItem, type ShellArea } from "./nav";
 
 const navLinkClass = (active: boolean) =>
@@ -59,7 +60,13 @@ const CondoChip = () => {
   if (!profile?.condo_name) return null;
   return (
     <span className="inline-flex max-w-[11rem] items-center gap-2 rounded-2xl border border-border bg-card py-1.5 pl-1.5 pr-3 text-sm font-semibold">
-      <CondoBadge name={profile.condo_name} size="sm" className="bg-primary" />
+      <CondoBadge
+        name={profile.condo_name}
+        size="sm"
+        logoUrl={profile.condo_branding?.logo_url}
+        color={profile.condo_branding?.primary_color}
+        className={profile.condo_branding?.primary_color ? undefined : "bg-primary"}
+      />
       <span className="truncate">{profile.condo_name}</span>
     </span>
   );
@@ -86,12 +93,15 @@ interface AppShellProps {
 }
 
 const AppShell = ({ area }: AppShellProps) => {
+  const { profile } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  // A área do morador assume as cores do condomínio; a administração mantém a identidade do Condo App.
+  const branding = area === "resident" ? profile?.condo_branding : null;
   const items = NAV[area];
   const bottomItems = items.filter((i) => !i.menuOnly);
 
   return (
-    <div className="flex min-h-dvh bg-background">
+    <div className="flex min-h-dvh bg-background" style={tenantStyle(branding?.primary_color, branding?.secondary_color)}>
       {/* Sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col gap-6 border-r border-border bg-card px-4 py-6 lg:flex">
         <BrandLogo compact className="px-2" />

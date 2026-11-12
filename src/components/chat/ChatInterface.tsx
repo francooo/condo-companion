@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, History, Loader2, MessageSquarePlus, MoreHorizontal, SendHorizontal, Settings, Sparkles, Trash2, WifiOff } from "lucide-react";
 import { toast } from "sonner";
-import { api, ApiError, type ChatMessageRecord, type Conversation } from "@/lib/api";
+import { api, ApiError, assetUrl, type ChatMessageRecord, type Conversation } from "@/lib/api";
 import { agentIcon } from "@/lib/agent";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -160,7 +160,7 @@ const ChatInterface = ({ conversationId }: { conversationId?: string }) => {
       {/* Cabeçalho do agente */}
       <div className="flex items-center gap-4 border-b border-border px-5 py-4">
         <div className="relative">
-          <IconTile icon={AgentIcon} size="md" className="bg-gradient-to-br from-brand-soft to-primary/60 text-foreground" />
+          <IconTile icon={AgentIcon} size="md" className="bg-tenant/25 text-foreground" />
           <span
             className={cn("absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card", online && !unavailable ? "bg-success" : "bg-muted-foreground")}
             aria-hidden
@@ -232,7 +232,14 @@ const ChatInterface = ({ conversationId }: { conversationId?: string }) => {
           />
         ) : messages.length === 0 ? (
           <div className="mx-auto flex max-w-xl flex-col items-center text-center">
-            <IconTile icon={AgentIcon} size="lg" className="text-foreground" />
+            {profile?.condo_branding?.cover_url && (
+              <img
+                src={assetUrl(profile.condo_branding.cover_url)!}
+                alt=""
+                className="mb-6 h-32 w-full rounded-3xl object-cover sm:h-40"
+              />
+            )}
+            <IconTile icon={AgentIcon} size="lg" className="bg-tenant/25 text-foreground" />
             <h2 className="mt-5 text-3xl font-extrabold tracking-tight">{firstName ? `Olá, ${firstName}` : "Olá!"}</h2>
             <p className="mt-2 text-muted-foreground">
               {agent ? (
@@ -317,7 +324,7 @@ const ChatInterface = ({ conversationId }: { conversationId?: string }) => {
             autoComplete="off"
             className="max-h-40 min-h-12 flex-1 resize-none rounded-2xl border border-input bg-background px-4 py-3 text-base [field-sizing:content] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
           />
-          <Button type="submit" size="icon" className="h-12 w-12 shrink-0 rounded-2xl" disabled={!canSend} aria-label="Enviar">
+          <Button type="submit" size="icon" className="h-12 w-12 shrink-0 rounded-2xl bg-tenant text-tenant-foreground hover:bg-tenant/90" disabled={!canSend} aria-label="Enviar">
             {thinking ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
           </Button>
         </form>

@@ -59,7 +59,9 @@ export default {
         },
         tenant: {
           DEFAULT: "hsl(var(--tenant-primary))",
+          foreground: "hsl(var(--tenant-foreground))",
           secondary: "hsl(var(--tenant-secondary))",
+          "secondary-foreground": "hsl(var(--tenant-secondary-foreground))",
         },
         success: { DEFAULT: "hsl(var(--success))", soft: "hsl(var(--success-soft))" },
         warning: { DEFAULT: "hsl(var(--warning))", soft: "hsl(var(--warning-soft))" },

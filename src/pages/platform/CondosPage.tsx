@@ -231,7 +231,7 @@ const CondosPage = () => {
               {filtered.map((c) => (
                 <div key={c.id} className="space-y-3 py-4">
                   <div className="flex items-center gap-4">
-                    <CondoBadge name={c.name} />
+                    <CondoBadge name={c.display_name || c.name} logoUrl={c.logo_url} color={c.primary_color} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{c.name}</p>
                       <p className="text-sm text-muted-foreground">
@@ -260,7 +260,7 @@ const CondosPage = () => {
                   <TableRow key={c.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <CondoBadge name={c.name} size="sm" />
+                        <CondoBadge name={c.display_name || c.name} logoUrl={c.logo_url} color={c.primary_color} size="sm" />
                         <div>
                           <p className="font-semibold">{c.name}</p>
                           <p className="text-xs text-muted-foreground">{c.identifier}</p>

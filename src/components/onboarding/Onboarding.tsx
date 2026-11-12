@@ -69,7 +69,7 @@ export const CondoCard = ({ label, condo, note }: { label: string; condo: CondoS
   <div className="rounded-2xl border border-border bg-card p-5 text-left">
     <p className="eyebrow">{label}</p>
     <div className="mt-3 flex items-center gap-4">
-      <CondoBadge name={condo.name} className="bg-primary/60" />
+      <CondoBadge name={condo.name} logoUrl={condo.logo_url} color={condo.primary_color} className={condo.primary_color ? undefined : "bg-primary/60"} />
       <div className="min-w-0">
         <p className="font-semibold">{condo.name}</p>
         <p className="text-sm text-muted-foreground">{note ?? (formatAddress(condo) || "Acesso limitado a este condomínio")}</p>

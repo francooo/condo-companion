@@ -59,7 +59,7 @@ const PlatformDashboardPage = () => {
               <ListRow
                 key={c.id}
                 to="/plataforma/condominios"
-                leading={<CondoBadge name={c.name} />}
+                leading={<CondoBadge name={c.display_name || c.name} logoUrl={c.logo_url} color={c.primary_color} />}
                 title={c.name}
                 meta={`${c.identifier} · desde ${dateFmt.format(new Date(c.created_at))}`}
               />

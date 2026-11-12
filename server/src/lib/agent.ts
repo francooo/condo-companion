@@ -86,7 +86,7 @@ interface AgentRow {
 /** Configuração do agente do condomínio (padrões quando ainda não foi configurado). `null` se o condomínio não existe. */
 export async function loadAgent(condoId: string): Promise<AgentSettings | null> {
   const { rows } = await query<AgentRow>(
-    `SELECT c.id AS condo_id, c.name AS condo_name, a.name, a.greeting, a.personality, a.language, a.tone,
+    `SELECT c.id AS condo_id, COALESCE(c.display_name, c.name) AS condo_name, a.name, a.greeting, a.personality, a.language, a.tone,
             a.suggestions, a.avatar_icon, a.enabled, a.updated_at, u.full_name AS updated_by_name
        FROM condos c
        LEFT JOIN agent_settings a ON a.condo_id = c.id

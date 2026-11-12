@@ -25,7 +25,7 @@ const OUTCOME_TITLE: Partial<Record<ChatOutcome, string>> = {
 };
 
 export const AgentAvatar = ({ icon = Sparkles }: { icon?: LucideIcon }) => (
-  <IconTile icon={icon} size="sm" className="mt-1 bg-gradient-to-br from-brand-soft to-primary/60 text-foreground" />
+  <IconTile icon={icon} size="sm" className="mt-1 bg-tenant/25 text-foreground" />
 );
 
 export const ThinkingBubble = ({ icon }: { icon?: LucideIcon }) => (

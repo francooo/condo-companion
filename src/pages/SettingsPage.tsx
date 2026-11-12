@@ -112,7 +112,7 @@ const SettingsPage = () => {
       {profile.condo_name && (
         <SectionCard title="Contexto de acesso">
           <div className="flex items-center gap-4">
-            <CondoBadge name={profile.condo_name} />
+            <CondoBadge name={profile.condo_name} logoUrl={profile.condo_branding?.logo_url} color={profile.condo_branding?.primary_color} />
             <div className="min-w-0 flex-1">
               <p className="font-semibold">{profile.condo_name}</p>
               <p className="text-sm text-muted-foreground">

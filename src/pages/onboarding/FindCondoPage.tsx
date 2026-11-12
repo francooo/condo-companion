@@ -107,7 +107,7 @@ const FindCondoPage = () => {
             {visible.map((c) => (
               <li key={c.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-4">
-                  <CondoBadge name={c.name} />
+                  <CondoBadge name={c.name} logoUrl={c.logo_url} color={c.primary_color} />
                   <div className="min-w-0">
                     <p className="font-semibold">{c.name}</p>
                     {formatAddress(c) && <p className="text-sm text-muted-foreground">{formatAddress(c)}</p>}

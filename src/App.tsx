@@ -35,6 +35,7 @@ import AgentPage from "./pages/admin/agent/AgentPage";
 import AgentSettingsPage from "./pages/admin/agent/AgentSettingsPage";
 import AgentSourcesPage from "./pages/admin/agent/AgentSourcesPage";
 import AgentTestPage from "./pages/admin/agent/AgentTestPage";
+import CustomizePage from "./pages/admin/CustomizePage";
 import FinancePage from "./pages/admin/FinancePage";
 import PlatformDashboardPage from "./pages/platform/PlatformDashboardPage";
 import CondosPage from "./pages/platform/CondosPage";
@@ -110,6 +111,7 @@ const AppRoutes = () => (
       <Route path="agente/configuracoes" element={<AgentSettingsPage />} />
       <Route path="agente/fontes" element={<AgentSourcesPage />} />
       <Route path="agente/teste" element={<AgentTestPage />} />
+      <Route path="personalizacao" element={<CustomizePage />} />
       <Route path="solicitacoes" element={<AccessRequestsPage />} />
       <Route path="financeiro" element={<FinancePage />} />
       <Route path="perfil" element={<ProfilePage area="admin" />} />
@@ -135,6 +137,7 @@ const AppRoutes = () => (
       <Route path="condominios/:condoId/agente/configuracoes" element={<AgentSettingsPage />} />
       <Route path="condominios/:condoId/agente/fontes" element={<AgentSourcesPage />} />
       <Route path="condominios/:condoId/agente/teste" element={<AgentTestPage />} />
+      <Route path="condominios/:condoId/personalizacao" element={<CustomizePage />} />
       <Route path="solicitacoes" element={<AccessRequestsPage />} />
       <Route path="perfil" element={<ProfilePage area="platform" />} />
     </Route>

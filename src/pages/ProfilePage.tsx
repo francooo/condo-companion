@@ -161,7 +161,7 @@ const ProfilePage = ({ area }: { area: ShellArea }) => {
       <SectionCard title="Acesso e contexto">
         <div className="flex items-center gap-4">
           {profile.condo_name ? (
-            <CondoBadge name={profile.condo_name} className="bg-primary" />
+            <CondoBadge name={profile.condo_name} logoUrl={profile.condo_branding?.logo_url} color={profile.condo_branding?.primary_color} className={profile.condo_branding?.primary_color ? undefined : "bg-primary"} />
           ) : (
             <CondoBadge name="Plataforma" className="bg-primary" />
           )}

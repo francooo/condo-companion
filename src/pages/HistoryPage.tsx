@@ -116,7 +116,7 @@ const HistoryPage = () => {
               <ListRow
                 key={c.id}
                 to={`/chat/${c.id}`}
-                leading={<CondoBadge name={condoName} />}
+                leading={<CondoBadge name={condoName} logoUrl={profile?.condo_branding?.logo_url} color={profile?.condo_branding?.primary_color} />}
                 title={c.title}
                 meta={`${condoName} · ${conversationWhen(c.updated_at)}`}
                 trailing={

@@ -12,6 +12,8 @@ import membershipRoutes from "./routes/membership.routes.js";
 import conversationsRoutes from "./routes/conversations.routes.js";
 import meRoutes from "./routes/me.routes.js";
 import agentRoutes from "./routes/agent.routes.js";
+import brandingRoutes from "./routes/branding.routes.js";
+import filesRoutes from "./routes/files.routes.js";
 
 const app = express();
 
@@ -20,6 +22,8 @@ app.use(express.json({ limit: "10mb" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/condos", condosRoutes);
+app.use("/api/condos", brandingRoutes);
+app.use("/api/files", filesRoutes);
 app.use("/api", usersRoutes);
 app.use("/api", membershipRoutes);
 app.use("/api", meRoutes);

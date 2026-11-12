@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   MessageCircle,
+  Palette,
   Settings,
   UserRound,
   Users,
@@ -41,6 +42,7 @@ export const NAV: Record<ShellArea, NavItem[]> = {
     { to: "/admin/agente", label: "Agente", icon: Bot },
     { to: "/admin/solicitacoes", label: "Solicitações", icon: Inbox, menuOnly: true },
     { to: "/admin/financeiro", label: "Financeiro", icon: Wallet, menuOnly: true },
+    { to: "/admin/personalizacao", label: "Personalização", icon: Palette, menuOnly: true },
     { to: "/admin/perfil", label: "Perfil", icon: UserRound, menuOnly: true },
   ],
   platform: [
