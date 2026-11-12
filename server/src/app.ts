@@ -11,6 +11,7 @@ import chatRoutes from "./routes/chat.routes.js";
 import membershipRoutes from "./routes/membership.routes.js";
 import conversationsRoutes from "./routes/conversations.routes.js";
 import meRoutes from "./routes/me.routes.js";
+import agentRoutes from "./routes/agent.routes.js";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use("/api/conversations", conversationsRoutes);
 app.use("/api/financial-records", financialRoutes);
 app.use("/api/documents", documentsRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/agent", agentRoutes);
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   // Erros do body-parser (corpo grande demais ou JSON malformado) são do cliente, não do servidor.

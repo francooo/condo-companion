@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import { AlertCircle, ChevronRight, FileText, Loader2, RotateCw, Sparkles } from "lucide-react";
+import { AlertCircle, ChevronRight, FileText, Loader2, RotateCw, Sparkles, type LucideIcon } from "lucide-react";
 import type { ChatOutcome, ChatSource } from "@/lib/api";
 import IconTile from "@/components/app/IconTile";
 import { cn } from "@/lib/utils";
@@ -24,13 +24,13 @@ const OUTCOME_TITLE: Partial<Record<ChatOutcome, string>> = {
   error: "Não foi possível concluir agora",
 };
 
-export const AgentAvatar = () => (
-  <IconTile icon={Sparkles} size="sm" className="mt-1 bg-gradient-to-br from-brand-soft to-primary/60 text-foreground" />
+export const AgentAvatar = ({ icon = Sparkles }: { icon?: LucideIcon }) => (
+  <IconTile icon={icon} size="sm" className="mt-1 bg-gradient-to-br from-brand-soft to-primary/60 text-foreground" />
 );
 
-export const ThinkingBubble = () => (
+export const ThinkingBubble = ({ icon }: { icon?: LucideIcon }) => (
   <div className="flex gap-3" role="status" aria-live="polite">
-    <AgentAvatar />
+    <AgentAvatar icon={icon} />
     <div className="rounded-2xl rounded-tl-md border border-border bg-muted/60 px-5 py-4">
       <p className="font-semibold">Preparando resposta</p>
       <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
@@ -45,21 +45,36 @@ export const ThinkingBubble = () => (
   </div>
 );
 
-export const SourceList = ({ sources, conversationId }: { sources: ChatSource[]; conversationId?: string }) => (
+/** Destino do link de uma fonte. Padrão: página "Origem da resposta" do morador. */
+export type SourceHref = (s: ChatSource, conversationId?: string) => string;
+
+const residentSourceHref: SourceHref = (s, conversationId) => {
+  const params = new URLSearchParams();
+  if (s.page) params.set("pagina", String(s.page));
+  if (conversationId) params.set("conversa", conversationId);
+  const qs = params.toString();
+  return `/fontes/${s.document_id}${qs ? `?${qs}` : ""}`;
+};
+
+export const SourceList = ({
+  sources,
+  conversationId,
+  hrefFor = residentSourceHref,
+}: {
+  sources: ChatSource[];
+  conversationId?: string;
+  hrefFor?: SourceHref;
+}) => (
   <div className="mt-4 rounded-2xl border border-border bg-card p-4">
     <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
       <FileText className="h-4 w-4 text-brand-strong" aria-hidden /> Fontes consultadas
     </p>
     <ul className="space-y-1">
       {sources.map((s) => {
-        const params = new URLSearchParams();
-        if (s.page) params.set("pagina", String(s.page));
-        if (conversationId) params.set("conversa", conversationId);
-        const qs = params.toString();
         return (
           <li key={`${s.document_id}:${s.page ?? ""}`}>
             <Link
-              to={`/fontes/${s.document_id}${qs ? `?${qs}` : ""}`}
+              to={hrefFor(s, conversationId)}
               className="group flex items-center gap-3 rounded-xl px-2 py-2 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="min-w-0 flex-1 truncate font-semibold">{s.filename}</span>
@@ -83,9 +98,21 @@ interface ChatMessageProps {
   onRetry?: () => void;
   retrying?: boolean;
   actionsDisabled?: boolean;
+  agentIcon?: LucideIcon;
+  sourceHref?: SourceHref;
 }
 
-const ChatMessage = ({ message, condoName, conversationId, onResend, onRetry, retrying, actionsDisabled }: ChatMessageProps) => {
+const ChatMessage = ({
+  message,
+  condoName,
+  conversationId,
+  onResend,
+  onRetry,
+  retrying,
+  actionsDisabled,
+  agentIcon,
+  sourceHref,
+}: ChatMessageProps) => {
   if (message.role === "user") {
     return (
       <div className="flex flex-col items-end gap-2">
@@ -123,7 +150,7 @@ const ChatMessage = ({ message, condoName, conversationId, onResend, onRetry, re
   const isError = message.outcome === "error";
   return (
     <div className="flex gap-3">
-      <AgentAvatar />
+      <AgentAvatar icon={agentIcon} />
       <div
         className={cn(
           "min-w-0 max-w-[85%] rounded-2xl rounded-tl-md border px-5 py-4",
@@ -134,7 +161,7 @@ const ChatMessage = ({ message, condoName, conversationId, onResend, onRetry, re
         <div className="prose prose-sm max-w-none break-words prose-p:my-2 prose-headings:font-display prose-strong:text-foreground">
           <ReactMarkdown>{message.content}</ReactMarkdown>
         </div>
-        {message.sources && message.sources.length > 0 && <SourceList sources={message.sources} conversationId={conversationId} />}
+        {message.sources && message.sources.length > 0 && <SourceList sources={message.sources} conversationId={conversationId} hrefFor={sourceHref} />}
         {isError && onRetry && (
           <button
             type="button"

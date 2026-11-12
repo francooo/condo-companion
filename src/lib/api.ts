@@ -190,6 +190,47 @@ export interface CitableDocument {
   condo_name: string;
 }
 
+export type AgentIcon = "sparkles" | "building" | "message" | "bot" | "key" | "home";
+export type AgentTone = "amigavel" | "formal" | "objetivo";
+export type AgentLanguage = "pt-BR" | "en" | "es";
+export type AgentStatus = "incomplete" | "ready" | "available";
+
+/** O que o chat do morador precisa saber do assistente. */
+export interface AgentPublic {
+  name: string;
+  greeting: string;
+  suggestions: string[];
+  avatar_icon: AgentIcon;
+  enabled: boolean;
+}
+
+export interface AgentSettings extends AgentPublic {
+  condo_id: string;
+  condo_name: string;
+  personality: string | null;
+  tone: AgentTone;
+  language: AgentLanguage;
+  custom: { name: string | null; greeting: string | null; personality: string | null; suggestions: string[] };
+  updated_at: string | null;
+  updated_by_name: string | null;
+}
+
+export interface AgentReadiness {
+  status: AgentStatus;
+  enabled: boolean;
+  counts: { available: number; processing: number; attention: number; inactive: number; total: number };
+}
+
+export interface AgentSettingsInput {
+  name: string;
+  greeting: string;
+  personality: string;
+  language: AgentLanguage;
+  tone: AgentTone;
+  suggestions: string[];
+  avatar_icon: AgentIcon;
+}
+
 export interface FinancialRecord {
   id: string;
   date: string;
@@ -365,6 +406,26 @@ export const api = {
       }),
     retry: (messageId: string) =>
       request<{ assistant_message: ChatMessageRecord }>(`/api/chat/messages/${messageId}/retry`, { method: "POST" }),
+  },
+  agent: {
+    get: (condoId?: string) => request<{ agent: AgentPublic }>(`/api/agent${withCondo(condoId)}`),
+    settings: (condoId?: string) =>
+      request<{ settings: AgentSettings; readiness: AgentReadiness }>(`/api/agent/settings${withCondo(condoId)}`),
+    update: (data: AgentSettingsInput, condoId?: string) =>
+      request<{ settings: AgentSettings; readiness: AgentReadiness }>("/api/agent/settings", {
+        method: "PUT",
+        body: JSON.stringify({ ...data, condo_id: condoId }),
+      }),
+    setAvailability: (enabled: boolean, condoId?: string) =>
+      request<{ settings: AgentSettings; readiness: AgentReadiness }>("/api/agent/availability", {
+        method: "PUT",
+        body: JSON.stringify({ enabled, condo_id: condoId }),
+      }),
+    test: (question: string, opts: { condoId?: string; draft?: AgentSettingsInput } = {}) =>
+      request<{ answer: { content: string; outcome: ChatOutcome; intent: string | null; sources: ChatSource[] } }>("/api/agent/test", {
+        method: "POST",
+        body: JSON.stringify({ question, condo_id: opts.condoId, draft: opts.draft }),
+      }),
   },
   conversations: {
     list: (q = "") => request<{ conversations: ConversationSummary[] }>(`/api/conversations${q ? `?q=${encodeURIComponent(q)}` : ""}`),

@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, History, Loader2, MessageSquarePlus, MoreHorizontal, SendHorizontal, Settings, Sparkles, Trash2, WifiOff } from "lucide-react";
 import { toast } from "sonner";
-import { api, type ChatMessageRecord, type Conversation } from "@/lib/api";
+import { api, ApiError, type ChatMessageRecord, type Conversation } from "@/lib/api";
+import { agentIcon } from "@/lib/agent";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,15 +23,6 @@ import { cn, errorMessage } from "@/lib/utils";
 import ChatMessage, { ThinkingBubble, type UiMessage } from "./ChatMessage";
 
 const MAX_CHARS = 2000;
-
-const SUGGESTIONS = [
-  "Quais são as regras do condomínio?",
-  "Como reservar o salão de festas?",
-  "Qual é o horário permitido para obras?",
-  "Posso receber visitantes?",
-  "Onde encontro os comunicados?",
-  "Quais são as regras para animais de estimação?",
-];
 
 type ConversationData = { conversation: Conversation; messages: ChatMessageRecord[] };
 
@@ -61,6 +53,12 @@ const ChatInterface = ({ conversationId }: { conversationId?: string }) => {
 
   const condoName = profile?.condo_name || "seu condomínio";
   const firstName = profile?.full_name?.split(" ")[0];
+
+  // Identidade configurada pela administração (nome, ícone, saudação, sugestões) e se está liberado.
+  const agentQuery = useQuery({ queryKey: ["agent"], queryFn: () => api.agent.get(), staleTime: 60_000 });
+  const agent = agentQuery.data?.agent;
+  const AgentIcon = agentIcon(agent?.avatar_icon);
+  const unavailable = agent ? !agent.enabled : false;
 
   const conversation = useQuery({
     queryKey: ["conversation", conversationId],
@@ -106,7 +104,13 @@ const ChatInterface = ({ conversationId }: { conversationId?: string }) => {
       if (id !== conversationId) navigate(`/chat/${id}`, { replace: !conversationId });
     } catch (err) {
       console.error(err);
-      setPending((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
+      if (err instanceof ApiError && err.code === "agent_unavailable") {
+        // A administração retirou o assistente enquanto a pessoa usava o chat.
+        setPending((prev) => prev.filter((m) => m.id !== tempId));
+        queryClient.invalidateQueries({ queryKey: ["agent"] });
+      } else {
+        setPending((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
+      }
     } finally {
       setThinking(false);
       inputRef.current?.focus();
@@ -149,26 +153,24 @@ const ChatInterface = ({ conversationId }: { conversationId?: string }) => {
 
   const notFound = conversationId && conversation.isError;
   const loadingConversation = conversationId && conversation.isLoading && pending.length === 0;
-  const canSend = online && !busy && Boolean(input.trim()) && input.length <= MAX_CHARS;
+  const canSend = online && !busy && !unavailable && Boolean(input.trim()) && input.length <= MAX_CHARS;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-border bg-card sm:rounded-3xl sm:border">
       {/* Cabeçalho do agente */}
       <div className="flex items-center gap-4 border-b border-border px-5 py-4">
         <div className="relative">
-          <IconTile icon={Sparkles} size="md" className="bg-gradient-to-br from-brand-soft to-primary/60 text-foreground" />
+          <IconTile icon={AgentIcon} size="md" className="bg-gradient-to-br from-brand-soft to-primary/60 text-foreground" />
           <span
-            className={cn("absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card", online ? "bg-success" : "bg-muted-foreground")}
+            className={cn("absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card", online && !unavailable ? "bg-success" : "bg-muted-foreground")}
             aria-hidden
           />
         </div>
         <div className="min-w-0 flex-1">
           {/* No mobile o condomínio já aparece no chip da barra superior. */}
-          <p className="truncate font-bold">
-            Assistente<span className="hidden sm:inline"> {profile?.condo_name ?? ""}</span>
-          </p>
+          <p className="truncate font-bold">{agent?.name ?? "Assistente"}</p>
           <p className="truncate text-sm text-muted-foreground">
-            {online ? "Disponível" : "Sem conexão"}
+            {unavailable ? "Em preparação" : online ? "Disponível" : "Sem conexão"}
             {conversation.data && <span className="hidden sm:inline"> · {conversation.data.conversation.title}</span>}
           </p>
         </div>
@@ -222,16 +224,27 @@ const ChatInterface = ({ conversationId }: { conversationId?: string }) => {
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Carregando conversa" />
           </div>
+        ) : unavailable && messages.length === 0 ? (
+          <EmptyState
+            icon={AgentIcon}
+            title="O assistente está em preparação"
+            description={`A administração do ${condoName} ainda está preparando os documentos do assistente. Volte em breve.`}
+          />
         ) : messages.length === 0 ? (
           <div className="mx-auto flex max-w-xl flex-col items-center text-center">
-            <IconTile icon={Sparkles} size="lg" className="text-foreground" />
+            <IconTile icon={AgentIcon} size="lg" className="text-foreground" />
             <h2 className="mt-5 text-3xl font-extrabold tracking-tight">{firstName ? `Olá, ${firstName}` : "Olá!"}</h2>
             <p className="mt-2 text-muted-foreground">
-              Sou o assistente do <strong className="text-foreground">{condoName}</strong>. Posso ajudar a encontrar informações
-              nos documentos deste condomínio.
+              {agent ? (
+                <>
+                  Sou o <strong className="text-foreground">{agent.name}</strong>. {agent.greeting}
+                </>
+              ) : (
+                <>Posso ajudar a encontrar informações nos documentos deste condomínio.</>
+              )}
             </p>
             <ul className="mt-6 w-full space-y-3 text-left">
-              {SUGGESTIONS.map((s, i) => {
+              {(agent?.suggestions ?? []).map((s, i) => {
                 const Icon = i % 2 === 0 ? Sparkles : FileText;
                 return (
                   <li key={s}>
@@ -260,16 +273,22 @@ const ChatInterface = ({ conversationId }: { conversationId?: string }) => {
                 onResend={() => ask(msg.content, msg.id)}
                 onRetry={() => retry(msg.id)}
                 retrying={retryingId === msg.id}
-                actionsDisabled={busy || !online}
+                actionsDisabled={busy || !online || unavailable}
+                agentIcon={AgentIcon}
               />
             ))}
-            {thinking && <ThinkingBubble />}
+            {thinking && <ThinkingBubble icon={AgentIcon} />}
           </div>
         )}
       </div>
 
       {/* Campo de mensagem */}
       <div className="border-t border-border bg-card px-4 py-4 sm:px-6">
+        {unavailable && messages.length > 0 && (
+          <InlineNotice tone="info" className="mx-auto mb-3 max-w-2xl">
+            O assistente foi retirado temporariamente pela administração. Seu histórico continua disponível.
+          </InlineNotice>
+        )}
         {!online && (
           <InlineNotice tone="warning" className="mx-auto mb-3 max-w-2xl">
             <span className="inline-flex items-center gap-2">
@@ -294,7 +313,7 @@ const ChatInterface = ({ conversationId }: { conversationId?: string }) => {
                 submit();
               }
             }}
-            disabled={notFound ? true : undefined}
+            disabled={notFound || unavailable ? true : undefined}
             autoComplete="off"
             className="max-h-40 min-h-12 flex-1 resize-none rounded-2xl border border-input bg-background px-4 py-3 text-base [field-sizing:content] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
           />

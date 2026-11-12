@@ -31,6 +31,10 @@ import DocumentUploadPage from "./pages/admin/DocumentUploadPage";
 import DocumentDetailPage from "./pages/admin/DocumentDetailPage";
 import ResidentsPage from "./pages/admin/ResidentsPage";
 import ResidentDetailPage from "./pages/admin/ResidentDetailPage";
+import AgentPage from "./pages/admin/agent/AgentPage";
+import AgentSettingsPage from "./pages/admin/agent/AgentSettingsPage";
+import AgentSourcesPage from "./pages/admin/agent/AgentSourcesPage";
+import AgentTestPage from "./pages/admin/agent/AgentTestPage";
 import FinancePage from "./pages/admin/FinancePage";
 import PlatformDashboardPage from "./pages/platform/PlatformDashboardPage";
 import CondosPage from "./pages/platform/CondosPage";
@@ -102,6 +106,10 @@ const AppRoutes = () => (
       <Route path="documentos/:docId" element={<DocumentDetailPage />} />
       <Route path="moradores" element={<ResidentsPage />} />
       <Route path="moradores/:residentId" element={<ResidentDetailPage />} />
+      <Route path="agente" element={<AgentPage />} />
+      <Route path="agente/configuracoes" element={<AgentSettingsPage />} />
+      <Route path="agente/fontes" element={<AgentSourcesPage />} />
+      <Route path="agente/teste" element={<AgentTestPage />} />
       <Route path="solicitacoes" element={<AccessRequestsPage />} />
       <Route path="financeiro" element={<FinancePage />} />
       <Route path="perfil" element={<ProfilePage area="admin" />} />
@@ -123,6 +131,10 @@ const AppRoutes = () => (
       <Route path="condominios/:condoId/documentos/:docId" element={<DocumentDetailPage />} />
       <Route path="condominios/:condoId/moradores" element={<ResidentsPage />} />
       <Route path="condominios/:condoId/moradores/:residentId" element={<ResidentDetailPage />} />
+      <Route path="condominios/:condoId/agente" element={<AgentPage />} />
+      <Route path="condominios/:condoId/agente/configuracoes" element={<AgentSettingsPage />} />
+      <Route path="condominios/:condoId/agente/fontes" element={<AgentSourcesPage />} />
+      <Route path="condominios/:condoId/agente/teste" element={<AgentTestPage />} />
       <Route path="solicitacoes" element={<AccessRequestsPage />} />
       <Route path="perfil" element={<ProfilePage area="platform" />} />
     </Route>

@@ -187,7 +187,7 @@ const ResidentDetailPage = () => {
         </SectionCard>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
         <div className="space-y-6">
           <SectionCard title="Dados do morador">
             <div className="mb-4 flex items-center gap-4 rounded-3xl border border-border bg-surface-warm/60 p-5">

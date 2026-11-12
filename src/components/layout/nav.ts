@@ -1,4 +1,5 @@
 import {
+  Bot,
   Building2,
   FileText,
   History,
@@ -37,8 +38,9 @@ export const NAV: Record<ShellArea, NavItem[]> = {
     { to: "/admin", label: "Painel", icon: LayoutDashboard, end: true },
     { to: "/admin/documentos", label: "Documentos", icon: FileText },
     { to: "/admin/moradores", label: "Moradores", icon: Users },
-    { to: "/admin/solicitacoes", label: "Solicitações", icon: Inbox },
-    { to: "/admin/financeiro", label: "Financeiro", icon: Wallet },
+    { to: "/admin/agente", label: "Agente", icon: Bot },
+    { to: "/admin/solicitacoes", label: "Solicitações", icon: Inbox, menuOnly: true },
+    { to: "/admin/financeiro", label: "Financeiro", icon: Wallet, menuOnly: true },
     { to: "/admin/perfil", label: "Perfil", icon: UserRound, menuOnly: true },
   ],
   platform: [

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Clock, FileText, Inbox, MessageCircle, UserCheck, UserX, Users, Wallet } from "lucide-react";
+import { Bot, Clock, FileText, Inbox, MessageCircle, UserCheck, UserX, Users, Wallet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import PageHeader from "@/components/app/PageHeader";
@@ -19,7 +19,8 @@ export function greeting(date = new Date()) {
 const SHORTCUTS = [
   { to: "/admin/documentos", icon: FileText, title: "Documentos", meta: "Envie convenção, regimento, atas e comunicados" },
   { to: "/admin/solicitacoes", icon: Inbox, title: "Solicitações de acesso", meta: "Aprove ou recuse pedidos de vínculo" },
-  { to: "/admin/moradores", icon: Users, title: "Moradores", meta: "Cadastre, ative ou desative moradores" },
+  { to: "/admin/moradores", icon: Users, title: "Moradores", meta: "Cadastre, suspenda ou remova moradores" },
+  { to: "/admin/agente", icon: Bot, title: "Agente de IA", meta: "Identidade, fontes, teste e liberação aos moradores" },
   { to: "/admin/financeiro", icon: Wallet, title: "Financeiro", meta: "Importe e consulte receitas e despesas" },
   { to: "/chat", icon: MessageCircle, title: "Assistente do condomínio", meta: "Veja o chat como os moradores veem" },
 ];

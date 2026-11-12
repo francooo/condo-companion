@@ -8,7 +8,10 @@ export type ActivityType =
   | "membership.suspended"
   | "membership.reactivated"
   | "membership.removed"
-  | "membership.added";
+  | "membership.added"
+  | "agent.updated"
+  | "agent.enabled"
+  | "agent.disabled";
 
 /**
  * Registra um evento no histórico. Falhar aqui não deve desfazer a ação principal
