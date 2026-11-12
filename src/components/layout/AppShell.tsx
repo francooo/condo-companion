@@ -42,6 +42,7 @@ const ModeSwitch = ({ area }: { area: ShellArea }) => {
           to={i.to}
           role="tab"
           aria-selected={i.current}
+          aria-label={i.label}
           className={cn(
             "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
             i.current ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",

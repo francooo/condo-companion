@@ -335,7 +335,7 @@ router.post("/:id/process", requireAuth, requireRole("admin", "superadmin"), asy
 
     await query(`UPDATE documents SET status = 'processing', error = NULL, updated_at = now() WHERE id = $1`, [doc.id]);
 
-    const { rows: batch } = await query(
+    const { rows: batch } = await query<{ id: string; content: string }>(
       `SELECT id, content FROM knowledge_base WHERE document_id = $1 AND NOT summarized
         ORDER BY page NULLS FIRST, (metadata->>'chunk_index')::int LIMIT $2`,
       [doc.id, PROCESS_BATCH]

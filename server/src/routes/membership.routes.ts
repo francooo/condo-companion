@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
+import { pgCode } from "../lib/errors.js";
 import { query } from "../db.js";
 import { requireAccount, requireAuth, requireRole } from "../middleware/auth.js";
 import { logActivity } from "../lib/activity.js";
@@ -12,7 +13,7 @@ const clean = (v: unknown, max = 80) => {
 };
 
 /** Erro do Postgres para UUID malformado: tratamos como "não encontrado". */
-const isInvalidUuid = (e: any) => e?.code === "22P02";
+const isInvalidUuid = (e: unknown) => pgCode(e) === "22P02";
 
 /** Situação do vínculo do usuário logado, com o condomínio solicitado/vinculado. */
 router.get("/me/membership", requireAccount, async (req, res) => {
@@ -81,10 +82,10 @@ router.post("/me/membership-request", requireAccount, async (req, res) => {
       payload: { unit, block: clean(req.body.block, 40) },
     });
     res.json({ success: true });
-  } catch (e: any) {
+  } catch (e) {
     if (isInvalidUuid(e)) return res.status(404).json({ error: "Condomínio não encontrado." });
     console.error("membership request error:", e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: "Erro interno do servidor." });
   }
 });
 
@@ -111,7 +112,7 @@ router.delete("/me/membership-request", requireAccount, async (req, res) => {
  * a administração da plataforma vê todos (ou filtra por ?condo_id=).
  */
 router.get("/access-requests", requireAuth, requireRole("admin", "superadmin"), async (req, res) => {
-  const status = REQUEST_STATUSES.includes(req.query.status as any) ? String(req.query.status) : "pending";
+  const status = REQUEST_STATUSES.includes(req.query.status as (typeof REQUEST_STATUSES)[number]) ? String(req.query.status) : "pending";
   const params: unknown[] = [status];
   let where = "u.role = 'resident' AND u.membership_status = $1 AND u.requested_at IS NOT NULL";
 
@@ -140,17 +141,17 @@ router.get("/access-requests", requireAuth, requireRole("admin", "superadmin"), 
   res.json({ requests: rows });
 });
 
-async function decide(req: any, res: any, status: "approved" | "rejected") {
+async function decide(req: Request, res: Response, status: "approved" | "rejected") {
   try {
     await applyDecision(req, res, status);
-  } catch (e: any) {
+  } catch (e) {
     if (isInvalidUuid(e)) return res.status(404).json({ error: "Solicitação não encontrada." });
     console.error("access request decision error:", e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: "Erro interno do servidor." });
   }
 }
 
-async function applyDecision(req: any, res: any, status: "approved" | "rejected") {
+async function applyDecision(req: Request, res: Response, status: "approved" | "rejected") {
   const reason = status === "rejected" ? clean(req.body?.reason, 500) : null;
   const params: unknown[] = [req.params.id, status, req.user!.id, reason];
   let scope = "";

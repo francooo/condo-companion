@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import { Router } from "express";
+import { pgCode } from "../lib/errors.js";
 import { brandingColumns, toBranding } from "../lib/branding.js";
 import { query } from "../db.js";
 import { hashPassword, verifyPassword, signToken, signState, verifyState } from "../lib/auth.js";
@@ -54,10 +55,10 @@ router.post("/bootstrap-superadmin", async (req, res) => {
 
     const token = signToken({ sub: rows[0].id, role: rows[0].role, condo_id: rows[0].condo_id });
     res.json({ token, user: await loadPublicUser(rows[0].id) });
-  } catch (e: any) {
-    if (e.code === "23505") return res.status(400).json({ error: "E-mail já cadastrado." });
+  } catch (e) {
+    if (pgCode(e) === "23505") return res.status(400).json({ error: "E-mail já cadastrado." });
     console.error("bootstrap-superadmin error:", e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: "Erro interno do servidor." });
   }
 });
 
@@ -80,9 +81,9 @@ router.post("/login", async (req, res) => {
 
     const token = signToken({ sub: user.id, role: user.role, condo_id: user.condo_id });
     res.json({ token, user: await loadPublicUser(user.id) });
-  } catch (e: any) {
+  } catch (e) {
     console.error("login error:", e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: "Erro interno do servidor." });
   }
 });
 
@@ -113,10 +114,10 @@ router.post("/signup", async (req, res) => {
 
     const token = signToken({ sub: rows[0].id, role: rows[0].role, condo_id: rows[0].condo_id });
     res.json({ token, user: await loadPublicUser(rows[0].id) });
-  } catch (e: any) {
-    if (e.code === "23505") return res.status(400).json({ error: "E-mail já cadastrado." });
+  } catch (e) {
+    if (pgCode(e) === "23505") return res.status(400).json({ error: "E-mail já cadastrado." });
     console.error("signup error:", e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: "Erro interno do servidor." });
   }
 });
 
@@ -159,7 +160,7 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     res.json({ success: true });
-  } catch (e: any) {
+  } catch (e) {
     console.error("forgot-password error:", e);
     res.status(500).json({ error: "Não foi possível processar a solicitação agora. Tente novamente." });
   }
@@ -186,9 +187,9 @@ router.post("/reset-password", async (req, res) => {
     await query("UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [reset.user_id]);
 
     res.json({ success: true });
-  } catch (e: any) {
+  } catch (e) {
     console.error("reset-password error:", e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: "Erro interno do servidor." });
   }
 });
 
@@ -234,9 +235,9 @@ router.get("/google/callback", async (req, res) => {
 
     const token = signToken({ sub: user.id, role: user.role, condo_id: user.condo_id });
     res.redirect(`${front}/auth/callback#token=${token}`);
-  } catch (e: any) {
+  } catch (e) {
     console.error("google callback error:", e);
-    res.redirect(`${front}/login?error=${encodeURIComponent(e.message || "Erro ao entrar com Google")}`);
+    res.redirect(`${front}/login?error=${encodeURIComponent("Erro ao entrar com Google")}`);
   }
 });
 

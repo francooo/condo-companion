@@ -1,5 +1,6 @@
 import * as pdfjsLib from "pdfjs-dist";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
+import { documentKind } from "./file-kinds";
 
 // Usa o worker empacotado pelo Vite.
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.mjs", import.meta.url).toString();
@@ -10,27 +11,7 @@ export interface ExtractedPage {
   text: string;
 }
 
-export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-export type DocumentKind = "pdf" | "docx" | "txt";
-
-export function documentKind(file: Pick<File, "name" | "type">): DocumentKind | null {
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".pdf") || file.type === "application/pdf") return "pdf";
-  if (name.endsWith(".docx") || file.type === DOCX_MIME) return "docx";
-  if (name.endsWith(".txt") || file.type === "text/plain") return "txt";
-  return null;
-}
-
-export const MIME_BY_KIND: Record<DocumentKind, string> = {
-  pdf: "application/pdf",
-  docx: DOCX_MIME,
-  txt: "text/plain",
-};
-
-export function isAcceptedFile(file: Pick<File, "name" | "type">): boolean {
-  return documentKind(file) !== null;
-}
+export { DOCX_MIME, documentKind, isAcceptedFile, MIME_BY_KIND, type DocumentKind } from "./file-kinds";
 
 /** Texto de cada página do PDF, na ordem. Páginas sem texto vêm vazias (mantêm a numeração). */
 export async function extractPdfPages(file: File): Promise<ExtractedPage[]> {

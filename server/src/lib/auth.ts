@@ -29,6 +29,6 @@ export function signState(payload: Record<string, unknown>): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "10m" });
 }
 
-export function verifyState<T = any>(token: string): T {
+export function verifyState<T = Record<string, unknown>>(token: string): T {
   return jwt.verify(token, JWT_SECRET) as T;
 }

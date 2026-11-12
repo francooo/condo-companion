@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -18,31 +19,31 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import FindCondoPage from "./pages/onboarding/FindCondoPage";
 import LinkConfirmPage from "./pages/onboarding/LinkConfirmPage";
 import MembershipStatusPage from "./pages/onboarding/MembershipStatusPage";
-import AccessRequestsPage from "./pages/admin/AccessRequestsPage";
+const AccessRequestsPage = lazy(() => import("./pages/admin/AccessRequestsPage"));
 import ChatPage from "./pages/ChatPage";
 import HistoryPage from "./pages/HistoryPage";
 import SourcePage from "./pages/SourcePage";
 import SettingsPage from "./pages/SettingsPage";
 import HelpPage from "./pages/HelpPage";
 import ProfilePage from "./pages/ProfilePage";
-import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
-import DocumentsPage from "./pages/admin/DocumentsPage";
-import DocumentUploadPage from "./pages/admin/DocumentUploadPage";
-import DocumentDetailPage from "./pages/admin/DocumentDetailPage";
-import ResidentsPage from "./pages/admin/ResidentsPage";
-import ResidentDetailPage from "./pages/admin/ResidentDetailPage";
-import AgentPage from "./pages/admin/agent/AgentPage";
-import AgentSettingsPage from "./pages/admin/agent/AgentSettingsPage";
-import AgentSourcesPage from "./pages/admin/agent/AgentSourcesPage";
-import AgentTestPage from "./pages/admin/agent/AgentTestPage";
-import CustomizePage from "./pages/admin/CustomizePage";
-import UsagePage from "./pages/admin/UsagePage";
-import CondoFormPage from "./pages/platform/CondoFormPage";
-import CondoDetailPage from "./pages/platform/CondoDetailPage";
-import PlatformCondoLayout from "./pages/platform/PlatformCondoLayout";
-import FinancePage from "./pages/admin/FinancePage";
-import PlatformDashboardPage from "./pages/platform/PlatformDashboardPage";
-import CondosPage from "./pages/platform/CondosPage";
+const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
+const DocumentsPage = lazy(() => import("./pages/admin/DocumentsPage"));
+const DocumentUploadPage = lazy(() => import("./pages/admin/DocumentUploadPage"));
+const DocumentDetailPage = lazy(() => import("./pages/admin/DocumentDetailPage"));
+const ResidentsPage = lazy(() => import("./pages/admin/ResidentsPage"));
+const ResidentDetailPage = lazy(() => import("./pages/admin/ResidentDetailPage"));
+const AgentPage = lazy(() => import("./pages/admin/agent/AgentPage"));
+const AgentSettingsPage = lazy(() => import("./pages/admin/agent/AgentSettingsPage"));
+const AgentSourcesPage = lazy(() => import("./pages/admin/agent/AgentSourcesPage"));
+const AgentTestPage = lazy(() => import("./pages/admin/agent/AgentTestPage"));
+const CustomizePage = lazy(() => import("./pages/admin/CustomizePage"));
+const UsagePage = lazy(() => import("./pages/admin/UsagePage"));
+const CondoFormPage = lazy(() => import("./pages/platform/CondoFormPage"));
+const CondoDetailPage = lazy(() => import("./pages/platform/CondoDetailPage"));
+const PlatformCondoLayout = lazy(() => import("./pages/platform/PlatformCondoLayout"));
+const FinancePage = lazy(() => import("./pages/admin/FinancePage"));
+const PlatformDashboardPage = lazy(() => import("./pages/platform/PlatformDashboardPage"));
+const CondosPage = lazy(() => import("./pages/platform/CondosPage"));
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -64,6 +65,7 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode;
 };
 
 const AppRoutes = () => (
+  <Suspense fallback={<FullScreenLoader />}>
   <Routes>
     <Route path="/" element={<Index />} />
     <Route path="/boas-vindas" element={<WelcomePage />} />
@@ -161,6 +163,7 @@ const AppRoutes = () => (
 
     <Route path="*" element={<NotFound />} />
   </Routes>
+  </Suspense>
 );
 
 const App = () => (

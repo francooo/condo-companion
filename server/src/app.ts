@@ -35,7 +35,7 @@ app.use("/api/documents", documentsRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/agent", agentRoutes);
 
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: { type?: string; message?: string }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   // Erros do body-parser (corpo grande demais ou JSON malformado) são do cliente, não do servidor.
   if (err?.type === "entity.too.large") {
     return res.status(413).json({ error: "O arquivo ou conteúdo enviado é grande demais." });

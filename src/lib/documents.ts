@@ -1,5 +1,6 @@
 import { api, type CondoDocument, type DocumentCategory, type DocumentStatus } from "./api";
-import { documentKind, extractPages, MIME_BY_KIND } from "./pdf-utils";
+// O leitor de PDF (pdf.js) é pesado: só é carregado quando alguém envia um arquivo.
+import { documentKind, MIME_BY_KIND } from "./file-kinds";
 
 export const DOCUMENT_CATEGORIES: { value: DocumentCategory; label: string }[] = [
   { value: "convencao", label: "Convenção condominial" },
@@ -87,6 +88,7 @@ export const isProcessingHere = (id: string) => inFlight.has(id);
 async function prepare(file: File) {
   const kind = documentKind(file);
   if (!kind) throw new Error("Formato não suportado. Use PDF, DOCX ou TXT.");
+  const { extractPages } = await import("./pdf-utils");
   const pages = await extractPages(file);
   return { filename: file.name, mime: MIME_BY_KIND[kind], size: file.size, pages };
 }

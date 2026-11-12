@@ -69,7 +69,7 @@ const FinancialUpload = () => {
           <p className="font-semibold">Importar planilha CSV</p>
           <p className="text-sm text-muted-foreground">Colunas: Data, Categoria, Descrição, Valor, Tipo (receita/despesa).</p>
         </div>
-        <input ref={inputRef} type="file" accept=".csv" className="sr-only" onChange={handleFileUpload} disabled={isUploading} />
+        <input ref={inputRef} type="file" accept=".csv" aria-label="Selecionar arquivo CSV" className="sr-only" onChange={handleFileUpload} disabled={isUploading} />
         <Button variant="outline" disabled={isUploading} onClick={() => inputRef.current?.click()}>
           {isUploading ? "Importando…" : "Selecionar CSV"}
         </Button>

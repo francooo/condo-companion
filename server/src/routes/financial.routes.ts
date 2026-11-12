@@ -5,11 +5,11 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 const router = Router();
 
 router.get("/categories", requireAuth, async (req, res) => {
-  const { rows } = await query(
+  const { rows } = await query<{ category: string }>(
     "SELECT DISTINCT category FROM financial_records WHERE condo_id = $1 ORDER BY category",
     [req.user!.condo_id]
   );
-  res.json({ categories: rows.map((r: any) => r.category) });
+  res.json({ categories: rows.map((r: { category: string }) => r.category) });
 });
 
 router.get("/", requireAuth, async (req, res) => {
@@ -55,10 +55,10 @@ router.post("/bulk", requireAuth, requireRole("admin", "superadmin"), async (req
     }
     await client.query("COMMIT");
     res.json({ success: true, count: records.length });
-  } catch (e: any) {
+  } catch (e) {
     await client.query("ROLLBACK");
     console.error("bulk financial insert error:", e);
-    res.status(400).json({ error: e.message });
+    res.status(400).json({ error: "Não foi possível importar os registros. Confira o arquivo." });
   } finally {
     client.release();
   }

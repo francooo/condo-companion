@@ -252,6 +252,7 @@ const DocumentUploadPage = () => {
               ref={inputRef}
               id="doc-files"
               type="file"
+              aria-label="Selecionar arquivos"
               multiple
               accept={ACCEPT_ATTR}
               className="sr-only"
