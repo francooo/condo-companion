@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, FileText, Loader2, Plus, Search, UserPlus } from "lucide-react";
+import { Building2, FileText, Users, Loader2, Plus, Search, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { api, type Condo } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -178,6 +178,11 @@ const CondosPage = () => {
       <Button asChild variant="outline" size="sm">
         <Link to={`/plataforma/condominios/${c.id}/documentos`}>
           <FileText /> Documentos
+        </Link>
+      </Button>
+      <Button asChild variant="outline" size="sm">
+        <Link to={`/plataforma/condominios/${c.id}/moradores`}>
+          <Users /> Moradores
         </Link>
       </Button>
       <Button variant="outline" size="sm" onClick={() => setAdminFor(c)}>

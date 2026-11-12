@@ -83,13 +83,32 @@ export interface Resident {
   id: string;
   full_name: string | null;
   email: string;
+  phone: string | null;
   unit: string | null;
   block: string | null;
   role: string;
   active: boolean;
   membership_status: MembershipStatus;
   created_at: string;
+  requested_at: string | null;
+  decided_at: string | null;
+  decision_reason: string | null;
   member_since: string;
+}
+
+export interface ResidentDetail extends Resident {
+  condo_id: string;
+  condo_name: string;
+  decided_by_name: string | null;
+}
+
+export interface MembershipEvent {
+  id: string;
+  type: string;
+  payload: { reason?: string; unit?: string; block?: string | null };
+  created_at: string;
+  actor_name: string | null;
+  by_self: boolean;
 }
 
 export type DocumentStatus = "uploaded" | "processing" | "processed" | "failed" | "needs_review";
@@ -275,17 +294,19 @@ export const api = {
       request<{ success: boolean }>(`/api/access-requests/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) }),
   },
   residents: {
-    list: () => request<{ residents: Resident[] }>("/api/residents"),
-    create: (data: { email: string; password: string; full_name: string; condo_id?: string }) =>
+    /** `condoId` só é usado pelo administrador da plataforma. */
+    list: (condoId?: string) => request<{ residents: Resident[] }>(`/api/residents${withCondo(condoId)}`),
+    get: (id: string) => request<{ resident: ResidentDetail; events: MembershipEvent[] }>(`/api/residents/${id}`),
+    create: (data: { email: string; password: string; full_name: string; unit: string; block?: string; condo_id?: string }) =>
       request<{ success: boolean; user_id: string }>("/api/residents", {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    setActive: (id: string, active: boolean) =>
-      request<{ success: boolean }>(`/api/residents/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ active }),
-      }),
+    suspend: (id: string, reason?: string) =>
+      request<{ resident: ResidentDetail }>(`/api/residents/${id}/suspend`, { method: "POST", body: JSON.stringify({ reason }) }),
+    reactivate: (id: string) => request<{ resident: ResidentDetail }>(`/api/residents/${id}/reactivate`, { method: "POST" }),
+    remove: (id: string, reason?: string) =>
+      request<{ resident: null }>(`/api/residents/${id}/remove`, { method: "POST", body: JSON.stringify({ reason }) }),
   },
   admins: {
     create: (data: { email: string; password: string; full_name: string; condo_id: string }) =>

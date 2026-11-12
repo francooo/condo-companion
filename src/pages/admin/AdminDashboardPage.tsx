@@ -31,8 +31,8 @@ const AdminDashboardPage = () => {
   const financial = useQuery({ queryKey: ["financial", "count"], queryFn: () => api.financial.list({ page: 0, pageSize: 1 }) });
 
   const list = residents.data?.residents ?? [];
-  const active = list.filter((r) => r.active).length;
-  const inactive = list.length - active;
+  const active = list.filter((r) => r.active && r.membership_status === "approved").length;
+  const inactive = list.filter((r) => !r.active || r.membership_status === "suspended").length;
   const loadingValue = "—";
 
   return (
@@ -45,7 +45,7 @@ const AdminDashboardPage = () => {
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <MetricCard label="Moradores ativos" icon={UserCheck} value={residents.isLoading ? loadingValue : active} hint="com acesso ao assistente" hintTone="success" />
-        <MetricCard label="Moradores inativos" icon={UserX} value={residents.isLoading ? loadingValue : inactive} hint="sem acesso no momento" />
+        <MetricCard label="Acesso suspenso" icon={UserX} value={residents.isLoading ? loadingValue : inactive} hint="sem acesso no momento" />
         <MetricCard
           label="Solicitações pendentes"
           icon={Clock}

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Inbox, Loader2, Search, X } from "lucide-react";
+import { Check, ChevronRight, Inbox, Loader2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, type AccessRequest } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,12 +34,14 @@ const Detail = ({ label, value }: { label: string; value: React.ReactNode }) => 
 const RequestCard = ({
   r,
   showCondo,
+  detailPath,
   onApprove,
   onReject,
   busy,
 }: {
   r: AccessRequest;
   showCondo: boolean;
+  detailPath: string | null;
   onApprove: () => void;
   onReject: () => void;
   busy: boolean;
@@ -77,7 +80,21 @@ const RequestCard = ({
         <Button variant="destructive-outline" onClick={onReject} disabled={busy}>
           <X /> Recusar
         </Button>
+        {detailPath && (
+          <Button asChild variant="ghost">
+            <Link to={detailPath}>
+              Ver detalhes <ChevronRight />
+            </Link>
+          </Button>
+        )}
       </div>
+    )}
+    {r.status === "approved" && detailPath && (
+      <Button asChild variant="outline" size="sm">
+        <Link to={detailPath}>
+          Ver morador <ChevronRight />
+        </Link>
+      </Button>
     )}
   </li>
 );
@@ -85,7 +102,11 @@ const RequestCard = ({
 const AccessRequestsPage = () => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const isPlatform = profile?.role === "superadmin";
+  // Recusados saem do condomínio na prática: não há página de morador para eles.
+  const detailPathFor = (r: AccessRequest) =>
+    r.status === "rejected" ? null : isPlatform ? `/plataforma/condominios/${r.condo_id}/moradores/${r.id}` : `/admin/moradores/${r.id}`;
   const [status, setStatus] = useState<Status>("pending");
   const [search, setSearch] = useState("");
   const [approving, setApproving] = useState<AccessRequest | null>(null);
@@ -110,7 +131,8 @@ const AccessRequestsPage = () => {
   const approve = useMutation({
     mutationFn: (r: AccessRequest) => api.accessRequests.approve(r.id),
     onSuccess: (_d, r) => {
-      toast.success(`Acesso de ${r.full_name || r.email} aprovado.`);
+      const path = detailPathFor(r);
+      toast.success(`Acesso de ${r.full_name || r.email} aprovado.`, path ? { action: { label: "Ver morador", onClick: () => navigate(path) } } : undefined);
       invalidate();
     },
     onError: (err) => toast.error(errorMessage(err, "Não foi possível aprovar.")),
@@ -175,6 +197,7 @@ const AccessRequestsPage = () => {
                 key={r.id}
                 r={r}
                 showCondo={isPlatform}
+                detailPath={detailPathFor(r)}
                 busy={approve.isPending || reject.isPending}
                 onApprove={() => setApproving(r)}
                 onReject={() => setRejecting(r)}

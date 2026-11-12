@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { requireAccount, requireAuth, requireRole } from "../middleware/auth.js";
+import { logActivity } from "../lib/activity.js";
 
 const router = Router();
 
@@ -72,6 +73,13 @@ router.post("/me/membership-request", requireAccount, async (req, res) => {
         WHERE id = $1`,
       [user.id, condoId, unit, clean(req.body.block, 40), clean(req.body.invite_code, 40)]
     );
+    await logActivity({
+      condoId,
+      actorId: user.id,
+      subjectUserId: user.id,
+      type: "membership.requested",
+      payload: { unit, block: clean(req.body.block, 40) },
+    });
     res.json({ success: true });
   } catch (e: any) {
     if (isInvalidUuid(e)) return res.status(404).json({ error: "Condomínio não encontrado." });
@@ -82,6 +90,7 @@ router.post("/me/membership-request", requireAccount, async (req, res) => {
 
 /** Cancela uma solicitação pendente (ou limpa uma recusa) para escolher outro condomínio. */
 router.delete("/me/membership-request", requireAccount, async (req, res) => {
+  const previous = { condoId: req.user!.condo_id, status: req.user!.membership_status };
   const { rowCount } = await query(
     `UPDATE users
         SET condo_id = NULL, membership_status = NULL, unit = NULL, block = NULL, invite_code = NULL,
@@ -90,6 +99,10 @@ router.delete("/me/membership-request", requireAccount, async (req, res) => {
     [req.user!.id]
   );
   if (rowCount === 0) return res.status(409).json({ error: "Não há solicitação para cancelar." });
+  // Só a desistência de um pedido em análise interessa ao histórico do condomínio.
+  if (previous.status === "pending") {
+    await logActivity({ condoId: previous.condoId, actorId: req.user!.id, subjectUserId: req.user!.id, type: "membership.cancelled" });
+  }
   res.json({ success: true });
 });
 
@@ -145,12 +158,21 @@ async function applyDecision(req: any, res: any, status: "approved" | "rejected"
     params.push(req.user!.condo_id);
     scope = ` AND condo_id = $${params.length}`;
   }
-  const { rowCount } = await query(
-    `UPDATE users SET membership_status = $2, decided_at = now(), decided_by = $3, decision_reason = $4
-      WHERE id = $1 AND role = 'resident' AND membership_status = 'pending'${scope}`,
+  const { rows } = await query<{ condo_id: string }>(
+    `UPDATE users SET membership_status = $2, decided_at = now(), decided_by = $3, decision_reason = $4,
+            approved_at = CASE WHEN $2 = 'approved' THEN now() ELSE approved_at END
+      WHERE id = $1 AND role = 'resident' AND membership_status = 'pending'${scope}
+      RETURNING condo_id`,
     params
   );
-  if (rowCount === 0) return res.status(404).json({ error: "Solicitação não encontrada ou já analisada." });
+  if (!rows[0]) return res.status(404).json({ error: "Solicitação não encontrada ou já analisada." });
+  await logActivity({
+    condoId: rows[0].condo_id,
+    actorId: req.user!.id,
+    subjectUserId: req.params.id,
+    type: status === "approved" ? "membership.approved" : "membership.rejected",
+    payload: reason ? { reason } : {},
+  });
   res.json({ success: true });
 }
 

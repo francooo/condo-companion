@@ -135,6 +135,11 @@ const MembershipStatusPage = () => {
                   A administração do {m.condo?.name} suspendeu temporariamente o seu acesso. Entre em contato com a administração para
                   regularizar.
                 </StateHero>
+                {m.decision_reason && (
+                  <p className="rounded-2xl bg-muted/60 p-4 text-sm">
+                    <strong>Motivo informado:</strong> {m.decision_reason}
+                  </p>
+                )}
                 {m.condo && <CondoCard label="Condomínio relacionado" condo={m.condo} />}
                 <div className="flex justify-center">
                   <Button size="lg" variant="outline" onClick={refresh} disabled={query.isFetching}>
