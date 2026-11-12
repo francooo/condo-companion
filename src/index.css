@@ -143,3 +143,16 @@
     @apply text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground;
   }
 }
+
+/* Preferências de acessibilidade da conta (Configurações). */
+html.pref-large-text {
+  font-size: 112.5%;
+}
+html.pref-reduced-motion *,
+html.pref-reduced-motion *::before,
+html.pref-reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

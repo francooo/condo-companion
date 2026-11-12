@@ -9,6 +9,8 @@ import financialRoutes from "./routes/financial.routes.js";
 import documentsRoutes from "./routes/documents.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
 import membershipRoutes from "./routes/membership.routes.js";
+import conversationsRoutes from "./routes/conversations.routes.js";
+import meRoutes from "./routes/me.routes.js";
 
 const app = express();
 
@@ -19,6 +21,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/condos", condosRoutes);
 app.use("/api", usersRoutes);
 app.use("/api", membershipRoutes);
+app.use("/api", meRoutes);
+app.use("/api/conversations", conversationsRoutes);
 app.use("/api/financial-records", financialRoutes);
 app.use("/api/documents", documentsRoutes);
 app.use("/api/chat", chatRoutes);

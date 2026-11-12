@@ -1,10 +1,12 @@
 import {
   Building2,
   FileText,
+  History,
   Inbox,
   LayoutDashboard,
   LifeBuoy,
   MessageCircle,
+  Settings,
   UserRound,
   Users,
   Wallet,
@@ -26,8 +28,10 @@ export interface NavItem {
 export const NAV: Record<ShellArea, NavItem[]> = {
   resident: [
     { to: "/chat", label: "Chat", icon: MessageCircle },
+    { to: "/historico", label: "Histórico", icon: History },
     { to: "/ajuda", label: "Ajuda", icon: LifeBuoy },
     { to: "/perfil", label: "Perfil", icon: UserRound },
+    { to: "/configuracoes", label: "Configurações", icon: Settings, menuOnly: true },
   ],
   admin: [
     { to: "/admin", label: "Painel", icon: LayoutDashboard, end: true },

@@ -20,6 +20,9 @@ import LinkConfirmPage from "./pages/onboarding/LinkConfirmPage";
 import MembershipStatusPage from "./pages/onboarding/MembershipStatusPage";
 import AccessRequestsPage from "./pages/admin/AccessRequestsPage";
 import ChatPage from "./pages/ChatPage";
+import HistoryPage from "./pages/HistoryPage";
+import SourcePage from "./pages/SourcePage";
+import SettingsPage from "./pages/SettingsPage";
 import HelpPage from "./pages/HelpPage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
@@ -75,6 +78,10 @@ const AppRoutes = () => (
       }
     >
       <Route path="/chat" element={<ChatPage />} />
+      <Route path="/chat/:conversationId" element={<ChatPage />} />
+      <Route path="/historico" element={<HistoryPage />} />
+      <Route path="/fontes/:documentId" element={<SourcePage />} />
+      <Route path="/configuracoes" element={<SettingsPage />} />
       <Route path="/ajuda" element={<HelpPage />} />
       <Route path="/perfil" element={<ProfilePage area="resident" />} />
     </Route>

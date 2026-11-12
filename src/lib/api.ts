@@ -26,6 +26,14 @@ export interface Profile {
   unit?: string | null;
   block?: string | null;
   membership_status: MembershipStatus;
+  preferences?: Preferences;
+  /** Falso em contas criadas pelo Google que ainda não definiram senha. */
+  has_password?: boolean;
+}
+
+export interface Preferences {
+  text_size?: "normal" | "large";
+  reduced_motion?: boolean;
 }
 
 export interface CondoSummary {
@@ -128,6 +136,39 @@ export interface ChatSource {
   document_id: string;
   filename: string;
   page: number | null;
+}
+
+export type ChatOutcome = "answered" | "not_found" | "out_of_scope" | "error";
+
+export interface ChatMessageRecord {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant";
+  content: string;
+  outcome: ChatOutcome | null;
+  intent: string | null;
+  sources: ChatSource[];
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationSummary extends Conversation {
+  message_count: number;
+  has_sources: boolean;
+}
+
+export interface CitableDocument {
+  id: string;
+  filename: string;
+  category: DocumentCategory;
+  page_count: number | null;
+  condo_name: string;
 }
 
 export interface FinancialRecord {
@@ -287,17 +328,36 @@ export const api = {
         headers: { "Content-Type": mime },
       }),
     downloadFile: (id: string) => requestBlob(`/api/documents/${id}/file`),
+    /** Documento citado como fonte (o morador só vê os processados e ativos do próprio condomínio). */
+    source: (id: string) => request<{ document: CitableDocument }>(`/api/documents/${id}/source`),
     page: (id: string, page: number) =>
       request<{ document: { id: string; filename: string; page_count: number }; page: number; content: string }>(
         `/api/documents/${id}/pages/${page}`
       ),
   },
   chat: {
-    ask: (question: string) =>
-      request<{ answer: string; intent: string; sources?: ChatSource[] }>("/api/chat", {
+    /** Sem `conversationId`, o servidor abre uma conversa nova. */
+    ask: (question: string, conversationId?: string) =>
+      request<{ conversation: Conversation; user_message: ChatMessageRecord; assistant_message: ChatMessageRecord }>("/api/chat", {
         method: "POST",
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, conversation_id: conversationId }),
       }),
+    retry: (messageId: string) =>
+      request<{ assistant_message: ChatMessageRecord }>(`/api/chat/messages/${messageId}/retry`, { method: "POST" }),
+  },
+  conversations: {
+    list: (q = "") => request<{ conversations: ConversationSummary[] }>(`/api/conversations${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+    get: (id: string) => request<{ conversation: Conversation; messages: ChatMessageRecord[] }>(`/api/conversations/${id}`),
+    remove: (id: string) => request<void>(`/api/conversations/${id}`, { method: "DELETE" }),
+    removeAll: () => request<{ deleted: number }>("/api/conversations", { method: "DELETE" }),
+  },
+  me: {
+    update: (data: { full_name?: string; phone?: string }) =>
+      request<{ user: Profile }>("/api/me", { method: "PATCH", body: JSON.stringify(data) }),
+    changePassword: (data: { current_password?: string; new_password: string }) =>
+      request<{ success: boolean }>("/api/me/password", { method: "POST", body: JSON.stringify(data) }),
+    updatePreferences: (prefs: Preferences) =>
+      request<{ user: Profile }>("/api/me/preferences", { method: "PATCH", body: JSON.stringify(prefs) }),
   },
 };
 

@@ -425,6 +425,33 @@ router.get("/:id/file", requireAuth, requireRole("admin", "superadmin"), async (
 // Texto por página: prévia (administração) e fonte citada (morador do condomínio)
 // ---------------------------------------------------------------------------
 
+/** Identificação de um documento citado como fonte. Morador só vê documento processado e ativo do próprio condomínio. */
+async function loadCitable(user: AuthUser, id: string) {
+  if (!isUuid(id)) return null;
+  const { rows } = await query(
+    `SELECT d.id, d.condo_id, d.filename, d.category, d.status, d.active, d.page_count, c.name AS condo_name
+       FROM documents d JOIN condos c ON c.id = d.condo_id WHERE d.id = $1`,
+    [id]
+  );
+  const doc = rows[0];
+  if (!doc) return null;
+  const isAdmin = user.role === "superadmin" || (user.role === "admin" && doc.condo_id === user.condo_id);
+  const canRead = isAdmin || (doc.condo_id === user.condo_id && doc.status === "processed" && doc.active);
+  return canRead ? doc : null;
+}
+
+router.get("/:id/source", requireAuth, async (req, res) => {
+  try {
+    const doc = await loadCitable(req.user!, req.params.id);
+    if (!doc) return res.status(404).json({ error: "Documento não encontrado." });
+    res.json({
+      document: { id: doc.id, filename: doc.filename, category: doc.category, page_count: doc.page_count, condo_name: doc.condo_name },
+    });
+  } catch (e) {
+    send(res, e, "document source error");
+  }
+});
+
 router.get("/:id/pages/:page", requireAuth, async (req, res) => {
   try {
     const user = req.user!;

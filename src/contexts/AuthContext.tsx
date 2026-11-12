@@ -14,6 +14,8 @@ interface AuthContextType {
   setAuth: (token: string, profile: Profile) => void;
   signOut: () => void;
   refreshProfile: () => Promise<void>;
+  /** Atualiza o perfil em memória com a resposta de uma edição (sem nova chamada a /me). */
+  updateProfile: (profile: Profile) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,7 +25,15 @@ const AuthContext = createContext<AuthContextType>({
   setAuth: () => {},
   signOut: () => {},
   refreshProfile: async () => {},
+  updateProfile: () => {},
 });
+
+/** Aplica as preferências de acessibilidade da conta no documento inteiro. */
+function applyPreferences(profile: Profile | null) {
+  const root = document.documentElement;
+  root.classList.toggle("pref-large-text", profile?.preferences?.text_size === "large");
+  root.classList.toggle("pref-reduced-motion", profile?.preferences?.reduced_motion === true);
+}
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -73,13 +83,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => applyPreferences(profile), [profile]);
+
   const setAuth = (token: string, p: Profile) => {
     persistToken(token);
     applyProfile(p);
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, setAuth, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, setAuth, signOut, refreshProfile, updateProfile: applyProfile }}>
       {children}
     </AuthContext.Provider>
   );

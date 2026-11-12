@@ -8,7 +8,7 @@ import { PageContainer } from "@/components/layout/AppShell";
 const FAQ = [
   {
     q: "Como solicito acesso ao condomínio?",
-    a: "Informe o identificador do seu condomínio ao criar a conta. A administração do condomínio confirma o seu vínculo.",
+    a: "Crie sua conta, busque o condomínio pelo nome ou endereço e informe sua unidade. A administração do condomínio analisa o pedido; você acompanha a situação pelo app.",
   },
   {
     q: "De onde vêm as respostas?",
@@ -17,6 +17,14 @@ const FAQ = [
   {
     q: "E se o assistente não encontrar a informação?",
     a: "Ele avisa quando a informação não consta nos documentos disponíveis. Nesse caso, procure a administração do condomínio.",
+  },
+  {
+    q: "Posso consultar de onde veio uma resposta?",
+    a: "Sim. Quando a resposta vem de um documento, ela mostra as fontes consultadas. Toque na fonte para ver a página do documento.",
+  },
+  {
+    q: "Minhas conversas ficam salvas?",
+    a: "Sim, no Histórico, e só você as vê. Você pode apagar uma conversa pelo menu dela ou todo o histórico em Configurações.",
   },
   {
     q: "Posso ver outro condomínio?",

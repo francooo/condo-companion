@@ -1,22 +1,27 @@
-import { useEffect, useRef, useState } from "react";
-import { FileText, Loader2, SendHorizontal, Sparkles, WifiOff } from "lucide-react";
-import { api } from "@/lib/api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileText, History, Loader2, MessageSquarePlus, MoreHorizontal, SendHorizontal, Settings, Sparkles, Trash2, WifiOff } from "lucide-react";
+import { toast } from "sonner";
+import { api, type ChatMessageRecord, type Conversation } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import IconTile from "@/components/app/IconTile";
 import InlineNotice from "@/components/app/InlineNotice";
+import EmptyState from "@/components/app/EmptyState";
+import ConfirmDialog from "@/components/app/ConfirmDialog";
 import { useOnlineStatus } from "@/hooks/use-online-status";
-import { cn } from "@/lib/utils";
-import ChatMessage, { AgentAvatar } from "./ChatMessage";
+import { cn, errorMessage } from "@/lib/utils";
+import ChatMessage, { ThinkingBubble, type UiMessage } from "./ChatMessage";
 
-export interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  createdAt: Date;
-  /** Mensagem do usuário que não chegou ao servidor. */
-  failed?: boolean;
-}
+const MAX_CHARS = 2000;
 
 const SUGGESTIONS = [
   "Quais são as regras do condomínio?",
@@ -27,60 +32,124 @@ const SUGGESTIONS = [
   "Quais são as regras para animais de estimação?",
 ];
 
-const newId = () => Math.random().toString(36).slice(2);
+type ConversationData = { conversation: Conversation; messages: ChatMessageRecord[] };
 
-const ChatInterface = () => {
+const toUi = (m: ChatMessageRecord): UiMessage => ({
+  id: m.id,
+  role: m.role,
+  content: m.content,
+  createdAt: m.created_at,
+  outcome: m.outcome,
+  sources: m.sources,
+});
+
+let tempSeq = 0;
+
+const ChatInterface = ({ conversationId }: { conversationId?: string }) => {
   const { profile } = useAuth();
   const online = useOnlineStatus();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [input, setInput] = useState("");
+  /** Perguntas que ainda não foram registradas no servidor. */
+  const [pending, setPending] = useState<UiMessage[]>([]);
+  const [thinking, setThinking] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const condoName = profile?.condo_name || "seu condomínio";
   const firstName = profile?.full_name?.split(" ")[0];
 
+  const conversation = useQuery({
+    queryKey: ["conversation", conversationId],
+    queryFn: () => api.conversations.get(conversationId!),
+    enabled: Boolean(conversationId),
+    retry: false,
+  });
+
+  // Trocar de conversa limpa o que estava pendente na anterior.
+  useEffect(() => {
+    setPending((p) => p.filter((m) => m.status === "sending"));
+  }, [conversationId]);
+
+  const messages = useMemo(
+    () => [...(conversationId ? conversation.data?.messages.map(toUi) ?? [] : []), ...pending],
+    [conversationId, conversation.data, pending],
+  );
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, isLoading]);
+  }, [messages, thinking]);
 
-  const ask = async (text: string, existingId?: string) => {
-    if (!text || isLoading || !profile?.condo_id) return;
-    const userId = existingId ?? newId();
+  const busy = thinking || Boolean(retryingId);
 
-    setMessages((prev) =>
-      existingId
-        ? prev.map((m) => (m.id === existingId ? { ...m, failed: false } : m))
-        : [...prev, { id: userId, role: "user", content: text, createdAt: new Date() }],
+  const ask = async (text: string, resendId?: string) => {
+    if (!text || busy || !profile?.condo_id) return;
+    const tempId = resendId ?? `tmp-${tempSeq++}`;
+    setPending((prev) =>
+      resendId
+        ? prev.map((m) => (m.id === resendId ? { ...m, status: "sending" } : m))
+        : [...prev, { id: tempId, role: "user", content: text, createdAt: new Date().toISOString(), status: "sending" }],
     );
-    setIsLoading(true);
-
+    setThinking(true);
     try {
-      const data = await api.chat.ask(text);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: newId(),
-          role: "assistant",
-          content: data.answer || "Desculpe, não consegui gerar uma resposta.",
-          createdAt: new Date(),
-        },
-      ]);
+      const res = await api.chat.ask(text, conversationId);
+      const id = res.conversation.id;
+      queryClient.setQueryData<ConversationData>(["conversation", id], (old) => ({
+        conversation: res.conversation,
+        messages: [...(old?.messages ?? []), res.user_message, res.assistant_message],
+      }));
+      setPending((prev) => prev.filter((m) => m.id !== tempId));
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      if (id !== conversationId) navigate(`/chat/${id}`, { replace: !conversationId });
     } catch (err) {
       console.error(err);
-      setMessages((prev) => prev.map((m) => (m.id === userId ? { ...m, failed: true } : m)));
+      setPending((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
     } finally {
-      setIsLoading(false);
+      setThinking(false);
+      inputRef.current?.focus();
     }
   };
+
+  const retry = async (messageId: string) => {
+    if (!conversationId || busy) return;
+    setRetryingId(messageId);
+    try {
+      const { assistant_message } = await api.chat.retry(messageId);
+      queryClient.setQueryData<ConversationData>(["conversation", conversationId], (old) =>
+        old ? { ...old, messages: old.messages.map((m) => (m.id === messageId ? assistant_message : m)) } : old,
+      );
+    } catch (err) {
+      toast.error(errorMessage(err, "Não foi possível refazer a resposta."));
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  const remove = useMutation({
+    mutationFn: () => api.conversations.remove(conversationId!),
+    onSuccess: () => {
+      toast.success("Conversa apagada.");
+      queryClient.removeQueries({ queryKey: ["conversation", conversationId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      navigate("/chat", { replace: true });
+    },
+    onError: (err) => toast.error(errorMessage(err, "Não foi possível apagar a conversa.")),
+  });
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
     const text = input.trim();
-    if (!text) return;
+    if (!text || text.length > MAX_CHARS || !online) return;
     setInput("");
     ask(text);
   };
+
+  const notFound = conversationId && conversation.isError;
+  const loadingConversation = conversationId && conversation.isLoading && pending.length === 0;
+  const canSend = online && !busy && Boolean(input.trim()) && input.length <= MAX_CHARS;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-border bg-card sm:rounded-3xl sm:border">
@@ -89,28 +158,77 @@ const ChatInterface = () => {
         <div className="relative">
           <IconTile icon={Sparkles} size="md" className="bg-gradient-to-br from-brand-soft to-primary/60 text-foreground" />
           <span
-            className={cn(
-              "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card",
-              online ? "bg-success" : "bg-muted-foreground",
-            )}
+            className={cn("absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card", online ? "bg-success" : "bg-muted-foreground")}
             aria-hidden
           />
         </div>
-        <div className="min-w-0">
-          <p className="truncate font-bold">Assistente {profile?.condo_name ?? ""}</p>
-          <p className="text-sm text-muted-foreground">{online ? "Disponível" : "Sem conexão"}</p>
+        <div className="min-w-0 flex-1">
+          {/* No mobile o condomínio já aparece no chip da barra superior. */}
+          <p className="truncate font-bold">
+            Assistente<span className="hidden sm:inline"> {profile?.condo_name ?? ""}</span>
+          </p>
+          <p className="truncate text-sm text-muted-foreground">
+            {online ? "Disponível" : "Sem conexão"}
+            {conversation.data && <span className="hidden sm:inline"> · {conversation.data.conversation.title}</span>}
+          </p>
         </div>
+        <Button asChild variant="ghost" size="icon" className="shrink-0" aria-label="Histórico de conversas">
+          <Link to="/historico">
+            <History />
+          </Link>
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="shrink-0" aria-label="Opções da conversa">
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[13rem] rounded-xl">
+            <DropdownMenuItem onSelect={() => navigate("/chat")} disabled={!conversationId}>
+              <MessageSquarePlus className="mr-2 h-4 w-4" /> Nova conversa
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => navigate("/historico")}>
+              <History className="mr-2 h-4 w-4" /> Histórico
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => navigate("/configuracoes")}>
+              <Settings className="mr-2 h-4 w-4" /> Configurações
+            </DropdownMenuItem>
+            {conversationId && conversation.data && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setConfirmDelete(true)} className="text-danger focus:text-danger">
+                  <Trash2 className="mr-2 h-4 w-4" /> Apagar conversa
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Mensagens */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gradient-to-b from-card to-background px-4 py-6 sm:px-6">
-        {messages.length === 0 ? (
+        {notFound ? (
+          <EmptyState
+            icon={MessageSquarePlus}
+            title="Conversa não encontrada"
+            description="Ela pode ter sido apagada. Comece uma nova conversa com o assistente."
+            action={
+              <Button asChild>
+                <Link to="/chat">Nova conversa</Link>
+              </Button>
+            }
+          />
+        ) : loadingConversation ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Carregando conversa" />
+          </div>
+        ) : messages.length === 0 ? (
           <div className="mx-auto flex max-w-xl flex-col items-center text-center">
             <IconTile icon={Sparkles} size="lg" className="text-foreground" />
             <h2 className="mt-5 text-3xl font-extrabold tracking-tight">{firstName ? `Olá, ${firstName}` : "Olá!"}</h2>
             <p className="mt-2 text-muted-foreground">
-              Sou o assistente do <strong className="text-foreground">{condoName}</strong>. Posso ajudar a encontrar
-              informações nos documentos deste condomínio.
+              Sou o assistente do <strong className="text-foreground">{condoName}</strong>. Posso ajudar a encontrar informações
+              nos documentos deste condomínio.
             </p>
             <ul className="mt-6 w-full space-y-3 text-left">
               {SUGGESTIONS.map((s, i) => {
@@ -120,8 +238,8 @@ const ChatInterface = () => {
                     <button
                       type="button"
                       onClick={() => ask(s)}
-                      disabled={isLoading || !online}
-                      className="flex w-full items-center gap-4 rounded-2xl border text-left border-border bg-card px-5 py-4 text-sm transition-colors hover:border-primary/50 hover:bg-brand-soft/40 disabled:opacity-50"
+                      disabled={busy || !online}
+                      className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left text-sm transition-colors hover:border-primary/50 hover:bg-brand-soft/40 disabled:opacity-50"
                     >
                       <Icon className="h-5 w-5 shrink-0 text-brand-strong" aria-hidden />
                       {s}
@@ -132,19 +250,20 @@ const ChatInterface = () => {
             </ul>
           </div>
         ) : (
-          <div className="mx-auto max-w-2xl space-y-6">
+          <div className="mx-auto max-w-2xl space-y-6" aria-live="polite">
             {messages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} onRetry={() => ask(msg.content, msg.id)} retryDisabled={isLoading || !online} />
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                condoName={condoName}
+                conversationId={conversationId}
+                onResend={() => ask(msg.content, msg.id)}
+                onRetry={() => retry(msg.id)}
+                retrying={retryingId === msg.id}
+                actionsDisabled={busy || !online}
+              />
             ))}
-            {isLoading && (
-              <div className="flex gap-3" role="status">
-                <AgentAvatar />
-                <div className="flex items-center gap-2 rounded-2xl rounded-tl-md border border-border bg-muted/60 px-5 py-4 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Preparando resposta…
-                </div>
-              </div>
-            )}
+            {thinking && <ThinkingBubble />}
           </div>
         )}
       </div>
@@ -154,31 +273,51 @@ const ChatInterface = () => {
         {!online && (
           <InlineNotice tone="warning" className="mx-auto mb-3 max-w-2xl">
             <span className="inline-flex items-center gap-2">
-              <WifiOff className="h-4 w-4" /> Sem conexão. Suas perguntas poderão ser enviadas quando a internet voltar.
+              <WifiOff className="h-4 w-4 shrink-0" aria-hidden /> Sem conexão com a internet. Conecte-se para enviar perguntas ao assistente.
             </span>
           </InlineNotice>
         )}
-        <form onSubmit={submit} className="mx-auto flex max-w-2xl items-center gap-2">
+        <form onSubmit={submit} className="mx-auto flex max-w-2xl items-end gap-2">
           <label htmlFor="chat-input" className="sr-only">
             Sua pergunta
           </label>
-          <input
+          <textarea
             id="chat-input"
+            ref={inputRef}
+            rows={1}
             placeholder="Pergunte algo sobre seu condomínio..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={isLoading}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            disabled={notFound ? true : undefined}
             autoComplete="off"
-            className="h-12 flex-1 rounded-2xl border border-input bg-background px-4 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
+            className="max-h-40 min-h-12 flex-1 resize-none rounded-2xl border border-input bg-background px-4 py-3 text-base [field-sizing:content] placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
           />
-          <Button type="submit" size="icon" className="h-12 w-12 rounded-2xl" disabled={isLoading || !input.trim() || !online} aria-label="Enviar">
-            <SendHorizontal />
+          <Button type="submit" size="icon" className="h-12 w-12 shrink-0 rounded-2xl" disabled={!canSend} aria-label="Enviar">
+            {thinking ? <Loader2 className="animate-spin" /> : <SendHorizontal />}
           </Button>
         </form>
-        <p className="mx-auto mt-2 max-w-2xl text-center text-xs text-muted-foreground">
-          As respostas se baseiam nos documentos disponibilizados pelo condomínio.
+        <p className={cn("mx-auto mt-2 max-w-2xl text-center text-xs", input.length > MAX_CHARS ? "text-danger" : "text-muted-foreground")}>
+          {input.length > MAX_CHARS * 0.9
+            ? `${input.length} de ${MAX_CHARS} caracteres`
+            : "As respostas se baseiam nos documentos disponibilizados pelo condomínio."}
         </p>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Apagar conversa?"
+        description="As mensagens desta conversa serão apagadas do seu histórico. Esta ação não pode ser desfeita."
+        confirmLabel="Apagar conversa"
+        destructive
+        onConfirm={() => remove.mutate()}
+      />
     </div>
   );
 };

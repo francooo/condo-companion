@@ -15,7 +15,7 @@ const RESET_TTL_MINUTES = 60;
 export async function loadPublicUser(id: string) {
   const { rows } = await query(
     `SELECT u.id, u.email, u.condo_id, u.role, u.full_name, u.active, u.phone, u.unit, u.block,
-            u.membership_status, c.name AS condo_name
+            u.membership_status, u.preferences, (u.password_hash IS NOT NULL) AS has_password, c.name AS condo_name
        FROM users u LEFT JOIN condos c ON c.id = u.condo_id
       WHERE u.id = $1`,
     [id]

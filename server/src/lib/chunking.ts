@@ -13,7 +13,8 @@ export interface Chunk {
 /** Normaliza espaços e remove caracteres de controle (o Postgres rejeita NUL em text). */
 export function cleanText(text: string) {
   return text
-    .replaceAll(String.fromCharCode(0), "")
+    .split(String.fromCharCode(0))
+    .join("")
     .replace(/[^\S\n]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
