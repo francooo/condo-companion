@@ -111,6 +111,14 @@
 
   /* the statement's strong words: the brand's yellow is too light on this ground, so a deep amber of it */
   #privacidade { --accent: #7a5600; }
+  /* a narrow desktop window: the bar gives the words the room between the logo and the button, so the last word never
+     runs under the button */
+  @media (min-width: 1024px) and (max-width: 1239px) { .nav--centre .nav__bar { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--s-4); } }
+  @media (min-width: 1024px) and (max-width: 1119px) { .nav--centre .nav__link { font-size: 14px; padding: 0 6px; } .nav--centre .nav__logo { font-size: 18px; } }
+  /* stacked (tablet and phone): the text and its frame keep their own height, so the section grows instead of the frame
+     running into the next one; the documents window keeps a readable height on a short phone */
+  @media (max-width: 1279px) { #administradoras .grid.fill { flex: 1 0 auto; } #administradoras .frame--split { min-height: 360px; } }
+  @media (max-width: 639px) { #documentos .app.fill { min-height: 340px; } }
   /* the statement stands in the middle of its screen, not at the top with an empty half under it */
   #privacidade > .wrap { justify-content: center; }
   main h2, footer h2 { hyphens: manual; }
@@ -157,7 +165,6 @@
       <div class="nav__item"><a class="nav__link" href="#administradoras">Administradoras</a></div>
     </nav>
     <div class="nav__actions">
-      <a class="nav__link" href="https://agentedecondo.vercel.app/login">Entrar</a>
       <a class="btn btn--primary" href="mailto:contato@condoapp.example?subject=Demonstra%C3%A7%C3%A3o%20do%20Condo%20App">Agendar demonstração</a>
     </div>
     <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu">
@@ -450,7 +457,7 @@
         <div class="span-2 footer__col"><h3>Produto</h3><ul><li><a href="#documentos">Documentos</a></li><li><a href="#sindico">Síndico</a></li></ul></div>
         <div class="span-2 footer__col"><h3>Confiança</h3><ul><li><a href="#privacidade">Privacidade</a></li><li><a href="#faq">Perguntas</a></li></ul></div>
         <div class="span-2 footer__col"><h3>Empresas</h3><ul><li><a href="#administradoras">Administradoras</a></li></ul></div>
-        <div class="span-2 footer__col"><h3>Conta</h3><ul><li><a href="https://agentedecondo.vercel.app/login">Entrar</a></li><li><a href="https://agentedecondo.vercel.app/cadastro">Criar conta</a></li></ul></div>
+        <div class="span-2 footer__col"><h3>Conta</h3><ul><li><a href="https://agentedecondo.vercel.app/cadastro">Criar conta</a></li></ul></div>
       </div>
       <div class="footer__legal">
         <span>&copy; 2026 Condo App</span>
