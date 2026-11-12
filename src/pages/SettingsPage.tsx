@@ -15,6 +15,8 @@ import CondoBadge from "@/components/app/CondoBadge";
 import StatusPill from "@/components/app/StatusPill";
 import ConfirmDialog from "@/components/app/ConfirmDialog";
 import { PageContainer } from "@/components/layout/AppShell";
+import { AREA_LABEL, type ShellArea } from "@/components/layout/nav";
+import { ShieldCheck } from "lucide-react";
 
 const Row = ({ title, description, children }: { title: string; description: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -26,7 +28,31 @@ const Row = ({ title, description, children }: { title: string; description: str
   </div>
 );
 
-const SettingsPage = () => {
+const PERMISSIONS: Record<"admin" | "platform", { title: string; items: string[] }> = {
+  admin: {
+    title: "Administração do condomínio",
+    items: [
+      "Aprovar, suspender e remover moradores deste condomínio",
+      "Enviar e gerenciar os documentos da base do assistente",
+      "Configurar, testar e liberar o assistente",
+      "Personalizar nome, cores e imagens do condomínio",
+      "Ver indicadores de uso, sem acesso às conversas dos moradores",
+    ],
+  },
+  platform: {
+    title: "Administração da plataforma",
+    items: [
+      "Cadastrar, editar e desativar condomínios",
+      "Indicar administradores de cada condomínio",
+      "Gerenciar documentos, moradores, assistente e identidade de qualquer condomínio",
+      "Ver indicadores de uso de toda a plataforma, sem acesso às conversas dos moradores",
+    ],
+  },
+};
+
+const PROFILE_PATH: Record<ShellArea, string> = { resident: "/perfil", admin: "/admin/perfil", platform: "/plataforma/perfil" };
+
+const SettingsPage = ({ area = "resident" }: { area?: ShellArea }) => {
   const { profile, updateProfile, signOut } = useAuth();
   const queryClient = useQueryClient();
   const [confirmClear, setConfirmClear] = useState(false);
@@ -59,7 +85,11 @@ const SettingsPage = () => {
 
   return (
     <PageContainer>
-      <PageHeader eyebrow={["Morador", "Configurações"]} title="Preferências" description="Ajuste a experiência do app. As escolhas ficam salvas na sua conta." />
+      <PageHeader
+        eyebrow={[AREA_LABEL[area], "Configurações"]}
+        title={area === "resident" ? "Preferências" : "Preferências administrativas"}
+        description="Ajuste a experiência do app. As escolhas ficam salvas na sua conta."
+      />
 
       <SectionCard title="Acessibilidade">
         <div className="divide-y divide-border">
@@ -84,6 +114,8 @@ const SettingsPage = () => {
         </div>
       </SectionCard>
 
+      {area === "resident" && (
+        <>
       <SectionCard title="Privacidade">
         <Row title="Histórico de conversas" description="Suas conversas com o assistente ficam visíveis só para você.">
           <Button variant="destructive-outline" onClick={() => setConfirmClear(true)} disabled={clearHistory.isPending}>
@@ -92,9 +124,12 @@ const SettingsPage = () => {
         </Row>
       </SectionCard>
 
+        </>
+      )}
+
       <SectionCard title="Conta">
         <div className="divide-y divide-border">
-          <Link to="/perfil" className="group flex items-center gap-4 py-4">
+          <Link to={PROFILE_PATH[area]} className="group flex items-center gap-4 py-4">
             <UserRound className="h-5 w-5 text-muted-foreground" aria-hidden />
             <span className="flex-1">
               <span className="block font-semibold group-hover:underline">Meu perfil</span>
@@ -109,7 +144,19 @@ const SettingsPage = () => {
         </div>
       </SectionCard>
 
-      {profile.condo_name && (
+      {area !== "resident" && (
+        <SectionCard title="Permissões" aside={<ShieldCheck className="h-5 w-5 text-success" aria-hidden />}>
+          <p className="font-semibold">{PERMISSIONS[area].title}</p>
+          {area === "admin" && profile.condo_name && <p className="text-sm text-muted-foreground">Somente {profile.condo_name}</p>}
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+            {PERMISSIONS[area].items.map((i) => (
+              <li key={i}>{i}</li>
+            ))}
+          </ul>
+        </SectionCard>
+      )}
+
+      {area === "resident" && profile.condo_name && (
         <SectionCard title="Contexto de acesso">
           <div className="flex items-center gap-4">
             <CondoBadge name={profile.condo_name} logoUrl={profile.condo_branding?.logo_url} color={profile.condo_branding?.primary_color} />

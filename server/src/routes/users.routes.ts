@@ -184,19 +184,26 @@ router.post("/residents", requireAuth, requireRole("admin", "superadmin"), async
 
 router.post("/admins", requireAuth, requireRole("superadmin"), async (req, res) => {
   try {
-    const { email, password, full_name, condo_id } = req.body;
-    const passwordHash = await hashPassword(password);
+    const email = clean(req.body.email, 160)?.toLowerCase();
+    const fullName = clean(req.body.full_name, 120);
+    const password = String(req.body.password ?? "");
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !fullName) return res.status(400).json({ error: "Nome e e-mail válidos são obrigatórios." });
+    if (password.length < 6) return res.status(400).json({ error: "A senha inicial precisa de ao menos 6 caracteres." });
+    if (!isUuid(req.body.condo_id)) return res.status(400).json({ error: "Informe o condomínio." });
+
     const { rows } = await query(
       `INSERT INTO users (email, password_hash, condo_id, role, full_name, active, approved_at)
        VALUES ($1, $2, $3, 'admin', $4, true, now())
        RETURNING id`,
-      [String(email).trim().toLowerCase(), passwordHash, condo_id, full_name]
+      [email, await hashPassword(password), req.body.condo_id, fullName]
     );
-    res.json({ success: true, user_id: rows[0].id });
+    res.status(201).json({ success: true, user_id: rows[0].id });
   } catch (e: unknown) {
-    if ((e as { code?: string }).code === "23505") return res.status(400).json({ error: "E-mail já cadastrado." });
+    const code = (e as { code?: string }).code;
+    if (code === "23505") return res.status(400).json({ error: "E-mail já cadastrado." });
+    if (code === "23503") return res.status(404).json({ error: "Condomínio não encontrado." });
     console.error("create admin error:", e);
-    res.status(400).json({ error: (e as Error).message });
+    res.status(500).json({ error: "Não foi possível criar o administrador." });
   }
 });
 

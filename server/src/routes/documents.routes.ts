@@ -4,6 +4,7 @@ import { pool, query } from "../db.js";
 import { requireAuth, requireRole, type AuthUser } from "../middleware/auth.js";
 import { groqChat, MODEL_DOCS } from "../lib/groq.js";
 import { chunkPages, cleanText, type PageText } from "../lib/chunking.js";
+import { logActivity } from "../lib/activity.js";
 
 const router = Router();
 
@@ -223,6 +224,7 @@ router.post("/", requireAuth, requireRole("admin", "superadmin"), async (req, re
     const { status, error } = initialStatus(chunks, upload.totalChars);
     await client.query(`UPDATE documents SET chunk_count = $2, status = $3, error = $4 WHERE id = $1`, [doc.id, chunks, status, error]);
     await client.query("COMMIT");
+    await logActivity({ condoId, actorId: req.user!.id, type: "document.uploaded", payload: { document_id: doc.id, filename: upload.filename } });
 
     res.status(201).json({ document: publicDoc(await loadDocument(req.user!, doc.id)) });
   } catch (e) {
@@ -274,6 +276,7 @@ router.delete("/:id", requireAuth, requireRole("admin", "superadmin"), async (re
     const doc = await loadDocument(req.user!, req.params.id);
     await query(`DELETE FROM documents WHERE id = $1`, [doc.id]);
     if (doc.file_id) await query(`DELETE FROM files WHERE id = $1`, [doc.file_id]);
+    await logActivity({ condoId: doc.condo_id, actorId: req.user!.id, type: "document.deleted", payload: { filename: doc.filename } });
     res.status(204).end();
   } catch (e) {
     send(res, e, "delete document error");
@@ -319,9 +322,11 @@ router.post("/:id/replace", requireAuth, requireRole("admin", "superadmin"), asy
 router.post("/:id/process", requireAuth, requireRole("admin", "superadmin"), async (req, res) => {
   const user = req.user!;
   let docId: string | null = null;
+  let failedDoc: { condo_id: string; filename: string } | null = null;
   try {
     const doc = await loadDocument(user, req.params.id);
     docId = doc.id;
+    failedDoc = { condo_id: doc.condo_id, filename: doc.filename };
     const total = Number(doc.chunk_count);
     if (doc.status === "processed") return res.json({ document: publicDoc(doc), processed: total, total });
     if (doc.status === "needs_review" && !(req.body?.force === true && total > 0)) {
@@ -362,6 +367,7 @@ router.post("/:id/process", requireAuth, requireRole("admin", "superadmin"), asy
         `UPDATE documents SET status = 'processed', chunk_count = $2, processed_at = now(), updated_at = now() WHERE id = $1`,
         [doc.id, all]
       );
+      await logActivity({ condoId: doc.condo_id, actorId: user.id, type: "document.processed", payload: { document_id: doc.id, filename: doc.filename } });
     }
     res.json({ document: publicDoc(await loadDocument(user, doc.id)), processed: done, total: all });
   } catch (e) {
@@ -370,6 +376,9 @@ router.post("/:id/process", requireAuth, requireRole("admin", "superadmin"), asy
       await query(`UPDATE documents SET status = 'failed', error = $2, updated_at = now() WHERE id = $1`, [docId, message]).catch(
         () => {}
       );
+      if (failedDoc) {
+        await logActivity({ condoId: failedDoc.condo_id, actorId: user.id, type: "document.failed", payload: { document_id: docId, filename: failedDoc.filename } });
+      }
     }
     send(res, e, "process document error");
   }

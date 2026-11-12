@@ -14,6 +14,7 @@ import meRoutes from "./routes/me.routes.js";
 import agentRoutes from "./routes/agent.routes.js";
 import brandingRoutes from "./routes/branding.routes.js";
 import filesRoutes from "./routes/files.routes.js";
+import insightsRoutes from "./routes/insights.routes.js";
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/condos", condosRoutes);
 app.use("/api/condos", brandingRoutes);
 app.use("/api/files", filesRoutes);
+app.use("/api", insightsRoutes);
 app.use("/api", usersRoutes);
 app.use("/api", membershipRoutes);
 app.use("/api", meRoutes);

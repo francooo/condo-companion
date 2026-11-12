@@ -70,10 +70,85 @@ export interface Condo extends CondoSummary {
   identifier: string;
   created_at: string;
   doc_count?: number;
+  status?: "active" | "inactive";
   display_name?: string | null;
   cover_url?: string | null;
   resident_count?: number;
   pending_count?: number;
+}
+
+export interface CondoInput {
+  name: string;
+  cnpj: string;
+  address: string;
+  city: string;
+  state: string;
+  description: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+}
+
+export interface CondoDetail {
+  id: string;
+  name: string;
+  identifier: string;
+  cnpj: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  description: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  status: "active" | "inactive";
+  created_at: string;
+  updated_at: string;
+  resident_count: number;
+  pending_count: number;
+  admin_count: number;
+  doc_count: number;
+  conversations_30d: number;
+  branding: Branding;
+  agent: { name?: string; enabled: boolean; status: AgentStatus; documents_available: number };
+}
+
+export interface CondoAdmin {
+  id: string;
+  full_name: string | null;
+  email: string;
+  phone: string | null;
+  active: boolean;
+  created_at: string;
+}
+
+export interface ActivityEvent {
+  id: string;
+  type: string;
+  payload: { reason?: string; filename?: string; document_id?: string; unit?: string; image?: string; status?: string; name?: string };
+  created_at: string;
+  condo_id: string | null;
+  condo_name: string | null;
+  actor_name: string | null;
+  subject_name: string | null;
+  subject_email: string | null;
+}
+
+export interface Usage {
+  days: number;
+  totals: {
+    conversations: number;
+    people: number;
+    questions: number;
+    answered: number;
+    with_sources: number;
+    not_found: number;
+    out_of_scope: number;
+    errors: number;
+    avg_response_seconds: number | null;
+  };
+  daily: { day: string; questions: number }[];
+  unanswered: { question: string; created_at: string; condo_name: string }[];
 }
 
 export interface Membership {
@@ -342,8 +417,11 @@ export const api = {
     search: (q: string) => request<{ condos: CondoSummary[] }>(`/api/condos/search?q=${encodeURIComponent(q)}`),
     summary: (id: string) => request<{ condo: CondoSummary }>(`/api/condos/${encodeURIComponent(id)}/summary`),
     list: () => request<{ condos: Condo[] }>("/api/condos"),
-    create: (data: { name: string; identifier: string; address?: string; city?: string; state?: string }) =>
-      request<{ condo: Condo }>("/api/condos", { method: "POST", body: JSON.stringify(data) }),
+    create: (data: CondoInput) => request<{ condo: CondoDetail }>("/api/condos", { method: "POST", body: JSON.stringify(data) }),
+    get: (id: string) => request<{ condo: CondoDetail }>(`/api/condos/${id}`),
+    update: (id: string, data: CondoInput & { status?: "active" | "inactive" }) =>
+      request<{ condo: CondoDetail }>(`/api/condos/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    admins: (id: string) => request<{ admins: CondoAdmin[] }>(`/api/condos/${id}/admins`),
   },
   membership: {
     get: () => request<{ membership: Membership }>("/api/me/membership"),
@@ -430,6 +508,17 @@ export const api = {
       }),
     retry: (messageId: string) =>
       request<{ assistant_message: ChatMessageRecord }>(`/api/chat/messages/${messageId}/retry`, { method: "POST" }),
+  },
+  insights: {
+    activity: (opts: { condoId?: string; limit?: number } = {}) => {
+      const params = new URLSearchParams();
+      if (opts.condoId) params.set("condo_id", opts.condoId);
+      if (opts.limit) params.set("limit", String(opts.limit));
+      const qs = params.toString();
+      return request<{ events: ActivityEvent[] }>(`/api/activity${qs ? `?${qs}` : ""}`);
+    },
+    usage: (days: number, condoId?: string) =>
+      request<Usage>(`/api/usage?days=${days}${condoId ? `&condo_id=${encodeURIComponent(condoId)}` : ""}`),
   },
   branding: {
     get: (condoId: string) => request<{ branding: BrandingDetail }>(`/api/condos/${condoId}/branding`),

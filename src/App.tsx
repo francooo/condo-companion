@@ -36,6 +36,10 @@ import AgentSettingsPage from "./pages/admin/agent/AgentSettingsPage";
 import AgentSourcesPage from "./pages/admin/agent/AgentSourcesPage";
 import AgentTestPage from "./pages/admin/agent/AgentTestPage";
 import CustomizePage from "./pages/admin/CustomizePage";
+import UsagePage from "./pages/admin/UsagePage";
+import CondoFormPage from "./pages/platform/CondoFormPage";
+import CondoDetailPage from "./pages/platform/CondoDetailPage";
+import PlatformCondoLayout from "./pages/platform/PlatformCondoLayout";
 import FinancePage from "./pages/admin/FinancePage";
 import PlatformDashboardPage from "./pages/platform/PlatformDashboardPage";
 import CondosPage from "./pages/platform/CondosPage";
@@ -87,7 +91,7 @@ const AppRoutes = () => (
       <Route path="/chat/:conversationId" element={<ChatPage />} />
       <Route path="/historico" element={<HistoryPage />} />
       <Route path="/fontes/:documentId" element={<SourcePage />} />
-      <Route path="/configuracoes" element={<SettingsPage />} />
+      <Route path="/configuracoes" element={<SettingsPage area="resident" />} />
       <Route path="/ajuda" element={<HelpPage />} />
       <Route path="/perfil" element={<ProfilePage area="resident" />} />
     </Route>
@@ -114,6 +118,8 @@ const AppRoutes = () => (
       <Route path="personalizacao" element={<CustomizePage />} />
       <Route path="solicitacoes" element={<AccessRequestsPage />} />
       <Route path="financeiro" element={<FinancePage />} />
+      <Route path="uso" element={<UsagePage />} />
+      <Route path="configuracoes" element={<SettingsPage area="admin" />} />
       <Route path="perfil" element={<ProfilePage area="admin" />} />
     </Route>
 
@@ -128,17 +134,24 @@ const AppRoutes = () => (
     >
       <Route index element={<PlatformDashboardPage />} />
       <Route path="condominios" element={<CondosPage />} />
-      <Route path="condominios/:condoId/documentos" element={<DocumentsPage />} />
-      <Route path="condominios/:condoId/documentos/novo" element={<DocumentUploadPage />} />
-      <Route path="condominios/:condoId/documentos/:docId" element={<DocumentDetailPage />} />
-      <Route path="condominios/:condoId/moradores" element={<ResidentsPage />} />
-      <Route path="condominios/:condoId/moradores/:residentId" element={<ResidentDetailPage />} />
-      <Route path="condominios/:condoId/agente" element={<AgentPage />} />
-      <Route path="condominios/:condoId/agente/configuracoes" element={<AgentSettingsPage />} />
-      <Route path="condominios/:condoId/agente/fontes" element={<AgentSourcesPage />} />
-      <Route path="condominios/:condoId/agente/teste" element={<AgentTestPage />} />
-      <Route path="condominios/:condoId/personalizacao" element={<CustomizePage />} />
+      <Route path="condominios/novo" element={<CondoFormPage />} />
+      <Route path="condominios/:condoId/editar" element={<CondoFormPage />} />
+      <Route path="condominios/:condoId" element={<PlatformCondoLayout />}>
+        <Route index element={<CondoDetailPage />} />
+        <Route path="documentos" element={<DocumentsPage />} />
+        <Route path="documentos/novo" element={<DocumentUploadPage />} />
+        <Route path="documentos/:docId" element={<DocumentDetailPage />} />
+        <Route path="moradores" element={<ResidentsPage />} />
+        <Route path="moradores/:residentId" element={<ResidentDetailPage />} />
+        <Route path="agente" element={<AgentPage />} />
+        <Route path="agente/configuracoes" element={<AgentSettingsPage />} />
+        <Route path="agente/fontes" element={<AgentSourcesPage />} />
+        <Route path="agente/teste" element={<AgentTestPage />} />
+        <Route path="personalizacao" element={<CustomizePage />} />
+      </Route>
       <Route path="solicitacoes" element={<AccessRequestsPage />} />
+      <Route path="uso" element={<UsagePage />} />
+      <Route path="configuracoes" element={<SettingsPage area="platform" />} />
       <Route path="perfil" element={<ProfilePage area="platform" />} />
     </Route>
 

@@ -1,268 +1,132 @@
 import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, Building2, FileText, Users, Loader2, Plus, Search, UserPlus } from "lucide-react";
-import { toast } from "sonner";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Building2, Loader2, Plus, Search } from "lucide-react";
 import { api, type Condo } from "@/lib/api";
+import { shortDate } from "@/lib/documents";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import PageHeader from "@/components/app/PageHeader";
 import SectionCard, { CountBadge } from "@/components/app/SectionCard";
-import FormField from "@/components/app/FormField";
+import FilterChips from "@/components/app/FilterChips";
 import EmptyState from "@/components/app/EmptyState";
+import StatusPill from "@/components/app/StatusPill";
 import CondoBadge from "@/components/app/CondoBadge";
+import ListRow, { ListRows } from "@/components/app/ListRow";
 import { PageContainer } from "@/components/layout/AppShell";
 
-const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
-const slugify = (s: string) =>
-  s
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+type StatusFilter = "all" | "active" | "inactive";
 
-const CreateCondoDialog = ({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) => {
-  const queryClient = useQueryClient();
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
-  const [address, setAddress] = useState({ address: "", city: "", state: "" });
-
-  const create = useMutation({
-    mutationFn: () =>
-      api.condos.create({
-        name: name.trim(),
-        identifier: slugify(slug),
-        address: address.address.trim() || undefined,
-        city: address.city.trim() || undefined,
-        state: address.state.trim() || undefined,
-      }),
-    onSuccess: () => {
-      toast.success("Condomínio cadastrado!");
-      setName("");
-      setSlug("");
-      setSlugTouched(false);
-      setAddress({ address: "", city: "", state: "" });
-      onOpenChange(false);
-      queryClient.invalidateQueries({ queryKey: ["condos"] });
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-3xl">
-        <DialogHeader>
-          <DialogTitle className="font-display text-xl">Novo condomínio</DialogTitle>
-          <DialogDescription>Cada condomínio tem documentos, moradores e assistente independentes.</DialogDescription>
-        </DialogHeader>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            create.mutate();
-          }}
-          className="space-y-4"
-        >
-          <FormField label="Nome do condomínio" htmlFor="condo-name">
-            <Input
-              id="condo-name"
-              placeholder="Residencial Aurora"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (!slugTouched) setSlug(slugify(e.target.value));
-              }}
-              required
-            />
-          </FormField>
-          <FormField label="Identificador" htmlFor="condo-slug" hint="Usado pelos moradores para encontrar o condomínio.">
-            <Input
-              id="condo-slug"
-              placeholder="residencial-aurora"
-              value={slug}
-              onChange={(e) => {
-                setSlugTouched(true);
-                setSlug(e.target.value);
-              }}
-              required
-            />
-          </FormField>
-          <FormField label="Endereço" htmlFor="condo-address" hint="Ajuda os moradores a encontrarem o condomínio na busca.">
-            <Input id="condo-address" placeholder="Rua das Acácias, 240" value={address.address} onChange={(e) => setAddress({ ...address, address: e.target.value })} />
-          </FormField>
-          <div className="grid grid-cols-[1fr_5rem] gap-3">
-            <FormField label="Cidade" htmlFor="condo-city">
-              <Input id="condo-city" placeholder="São Paulo" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
-            </FormField>
-            <FormField label="UF" htmlFor="condo-state">
-              <Input id="condo-state" placeholder="SP" maxLength={2} value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })} />
-            </FormField>
-          </div>
-          <Button type="submit" className="w-full" disabled={create.isPending}>
-            {create.isPending && <Loader2 className="animate-spin" />}
-            Cadastrar condomínio
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-const CreateAdminDialog = ({ condo, onClose }: { condo: Condo | null; onClose: () => void }) => {
-  const [form, setForm] = useState({ full_name: "", email: "", password: "" });
-  const create = useMutation({
-    mutationFn: () =>
-      api.admins.create({ email: form.email.trim(), password: form.password, full_name: form.full_name.trim(), condo_id: condo!.id }),
-    onSuccess: () => {
-      toast.success("Administrador criado!");
-      setForm({ full_name: "", email: "", password: "" });
-      onClose();
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  return (
-    <Dialog open={Boolean(condo)} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-3xl">
-        <DialogHeader>
-          <DialogTitle className="font-display text-xl">Administrador · {condo?.name}</DialogTitle>
-          <DialogDescription>A administração do condomínio só acessa este ambiente.</DialogDescription>
-        </DialogHeader>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            create.mutate();
-          }}
-          className="space-y-4"
-        >
-          <FormField label="Nome completo" htmlFor="adm-name">
-            <Input id="adm-name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
-          </FormField>
-          <FormField label="E-mail" htmlFor="adm-email">
-            <Input id="adm-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-          </FormField>
-          <FormField label="Senha inicial" htmlFor="adm-pass">
-            <Input id="adm-pass" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6} />
-          </FormField>
-          <Button type="submit" className="w-full" disabled={create.isPending}>
-            {create.isPending && <Loader2 className="animate-spin" />}
-            Criar administrador
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-};
+const nameOf = (c: Condo) => c.display_name || c.name;
 
 const CondosPage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [adminFor, setAdminFor] = useState<Condo | null>(null);
-  const createOpen = searchParams.get("novo") === "1";
-  const setCreateOpen = (o: boolean) => setSearchParams(o ? { novo: "1" } : {}, { replace: true });
-
+  const [status, setStatus] = useState<StatusFilter>("all");
   const { data, isLoading } = useQuery({ queryKey: ["condos"], queryFn: () => api.condos.list() });
   const condos = useMemo(() => data?.condos ?? [], [data]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return q ? condos.filter((c) => c.name.toLowerCase().includes(q) || c.identifier.includes(q)) : condos;
-  }, [condos, search]);
+    return condos.filter(
+      (c) =>
+        (status === "all" || (c.status ?? "active") === status) &&
+        (!q || [c.name, c.display_name, c.identifier, c.city].some((v) => v?.toLowerCase().includes(q))),
+    );
+  }, [condos, search, status]);
 
-  const rowActions = (c: Condo) => (
-    <div className="flex flex-wrap gap-2 lg:flex-nowrap">
-      <Button asChild variant="outline" size="sm">
-        <Link to={`/plataforma/condominios/${c.id}/documentos`}>
-          <FileText /> Documentos
-        </Link>
-      </Button>
-      <Button asChild variant="outline" size="sm">
-        <Link to={`/plataforma/condominios/${c.id}/moradores`}>
-          <Users /> Moradores
-        </Link>
-      </Button>
-      <Button asChild variant="outline" size="sm">
-        <Link to={`/plataforma/condominios/${c.id}/agente`}>
-          <Bot /> Agente
-        </Link>
-      </Button>
-      <Button variant="outline" size="sm" onClick={() => setAdminFor(c)}>
-        <UserPlus /> Administrador
-      </Button>
-    </div>
-  );
+  // Link antigo do painel ("?novo=1") abria um diálogo; hoje o cadastro tem página própria.
+  if (searchParams.get("novo") === "1") return <Navigate to="/plataforma/condominios/novo" replace />;
+
+  const detail = (c: Condo) => `/plataforma/condominios/${c.id}`;
 
   return (
     <PageContainer>
       <PageHeader
-        eyebrow={["Administração", "Plataforma", "Condomínios"]}
+        eyebrow={["Plataforma", "Condomínios"]}
         title="Condomínios"
-        description="Ambientes cadastrados na plataforma, cada um com sua base de conhecimento."
+        description="Ambientes independentes na plataforma, cada um com identidade, moradores e base documental próprios."
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus /> Adicionar condomínio
+          <Button asChild size="lg">
+            <Link to="/plataforma/condominios/novo">
+              <Plus /> Adicionar condomínio
+            </Link>
           </Button>
         }
       />
 
-      <div className="relative w-full sm:max-w-sm">
+      <div className="relative w-full sm:max-w-md">
         <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Buscar condomínio" aria-label="Buscar condomínio" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-11" />
+        <Input placeholder="Buscar por nome, identificador ou cidade" aria-label="Buscar condomínio" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-11" />
       </div>
+      <FilterChips<StatusFilter>
+        aria-label="Situação"
+        value={status}
+        onChange={setStatus}
+        options={[
+          { value: "all", label: "Todos" },
+          { value: "active", label: "Ativos" },
+          { value: "inactive", label: "Inativos" },
+        ]}
+      />
 
-      <SectionCard title="Todos os condomínios" aside={<CountBadge>{condos.length} cadastrados</CountBadge>}>
+      <SectionCard title="Todos os condomínios" aside={data && <CountBadge>{filtered.length === 1 ? "1 condomínio" : `${filtered.length} condomínios`}</CountBadge>}>
         {isLoading ? (
           <div className="flex justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Carregando" />
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={Building2}
             title={condos.length === 0 ? "Nenhum condomínio cadastrado" : "Nenhum resultado"}
-            description={condos.length === 0 ? "Cadastre o primeiro condomínio da plataforma." : "Ajuste os termos da busca."}
+            description={condos.length === 0 ? "Cadastre o primeiro condomínio da plataforma." : "Ajuste a busca ou o filtro."}
           />
         ) : (
           <>
-            <div className="divide-y divide-border lg:hidden">
+            <ListRows className="lg:hidden">
               {filtered.map((c) => (
-                <div key={c.id} className="space-y-3 py-4">
-                  <div className="flex items-center gap-4">
-                    <CondoBadge name={c.display_name || c.name} logoUrl={c.logo_url} color={c.primary_color} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold">{c.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {[c.city, `${c.resident_count ?? 0} moradores`, `${c.doc_count ?? 0} documentos`].filter(Boolean).join(" · ")}
-                      </p>
-                      {(c.pending_count ?? 0) > 0 && <p className="text-sm font-semibold text-warning">{c.pending_count} solicitações pendentes</p>}
-                    </div>
-                  </div>
-                  {rowActions(c)}
-                </div>
+                <ListRow
+                  key={c.id}
+                  to={detail(c)}
+                  leading={<CondoBadge name={nameOf(c)} logoUrl={c.logo_url} color={c.primary_color} />}
+                  title={nameOf(c)}
+                  meta={
+                    <>
+                      <span className="block">{[c.city, `${c.resident_count ?? 0} moradores`, `${c.doc_count ?? 0} documentos`].filter(Boolean).join(" · ")}</span>
+                      {(c.pending_count ?? 0) > 0 && <span className="block font-semibold text-warning">{c.pending_count} solicitações pendentes</span>}
+                      {c.status === "inactive" && (
+                        <span className="mt-2 flex">
+                          <StatusPill status="inactive" />
+                        </span>
+                      )}
+                    </>
+                  }
+                />
               ))}
-            </div>
+            </ListRows>
             <Table className="hidden lg:table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Condomínio</TableHead>
                   <TableHead>Cidade</TableHead>
                   <TableHead>Moradores</TableHead>
-                  <TableHead>Base de conhecimento</TableHead>
+                  <TableHead>Documentos</TableHead>
+                  <TableHead>Situação</TableHead>
                   <TableHead>Criado em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((c) => (
-                  <TableRow key={c.id}>
+                  <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(detail(c))}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <CondoBadge name={c.display_name || c.name} logoUrl={c.logo_url} color={c.primary_color} size="sm" />
-                        <div>
-                          <p className="font-semibold">{c.name}</p>
+                        <CondoBadge name={nameOf(c)} logoUrl={c.logo_url} color={c.primary_color} size="sm" />
+                        <div className="min-w-0">
+                          <Link to={detail(c)} className="font-semibold hover:underline" onClick={(e) => e.stopPropagation()}>
+                            {nameOf(c)}
+                          </Link>
                           <p className="text-xs text-muted-foreground">{c.identifier}</p>
                         </div>
                       </div>
@@ -272,11 +136,11 @@ const CondosPage = () => {
                       {c.resident_count ?? 0}
                       {(c.pending_count ?? 0) > 0 && <span className="ml-2 text-xs font-semibold text-warning">+{c.pending_count} pendentes</span>}
                     </TableCell>
-                    <TableCell>{c.doc_count ?? 0} documentos</TableCell>
-                    <TableCell className="whitespace-nowrap">{dateFmt.format(new Date(c.created_at))}</TableCell>
+                    <TableCell>{c.doc_count ?? 0}</TableCell>
                     <TableCell>
-                      <div className="flex justify-end">{rowActions(c)}</div>
+                      <StatusPill status={(c.status ?? "active") === "active" ? "active" : "inactive"} />
                     </TableCell>
+                    <TableCell className="whitespace-nowrap">{shortDate.format(new Date(c.created_at))}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -284,9 +148,6 @@ const CondosPage = () => {
           </>
         )}
       </SectionCard>
-
-      <CreateCondoDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <CreateAdminDialog condo={adminFor} onClose={() => setAdminFor(null)} />
     </PageContainer>
   );
 };

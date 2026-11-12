@@ -13,7 +13,13 @@ export type ActivityType =
   | "agent.enabled"
   | "agent.disabled"
   | "branding.updated"
-  | "branding.restored";
+  | "branding.restored"
+  | "condo.created"
+  | "condo.updated"
+  | "document.uploaded"
+  | "document.processed"
+  | "document.failed"
+  | "document.deleted";
 
 /**
  * Registra um evento no histórico. Falhar aqui não deve desfazer a ação principal

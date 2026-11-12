@@ -8,7 +8,7 @@ interface MetricCardProps {
   value: ReactNode;
   icon: LucideIcon;
   hint?: ReactNode;
-  hintTone?: "muted" | "success";
+  hintTone?: "muted" | "success" | "warning";
   className?: string;
 }
 
@@ -20,7 +20,7 @@ const MetricCard = ({ label, value, icon, hint, hintTone = "muted", className }:
     </div>
     <p className="font-display text-3xl font-extrabold tracking-tight">{value}</p>
     {hint && (
-      <p className={cn("text-xs font-semibold", hintTone === "success" ? "text-success" : "text-muted-foreground")}>
+      <p className={cn("text-xs font-semibold", hintTone === "success" ? "text-success" : hintTone === "warning" ? "text-warning" : "text-muted-foreground")}>
         {hint}
       </p>
     )}

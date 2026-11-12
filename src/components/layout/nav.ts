@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Bot,
   Building2,
   FileText,
@@ -43,13 +44,17 @@ export const NAV: Record<ShellArea, NavItem[]> = {
     { to: "/admin/solicitacoes", label: "Solicitações", icon: Inbox, menuOnly: true },
     { to: "/admin/financeiro", label: "Financeiro", icon: Wallet, menuOnly: true },
     { to: "/admin/personalizacao", label: "Personalização", icon: Palette, menuOnly: true },
+    { to: "/admin/uso", label: "Uso do assistente", icon: BarChart3, menuOnly: true },
+    { to: "/admin/configuracoes", label: "Configurações", icon: Settings, menuOnly: true },
     { to: "/admin/perfil", label: "Perfil", icon: UserRound, menuOnly: true },
   ],
   platform: [
     { to: "/plataforma", label: "Painel", icon: LayoutDashboard, end: true },
     { to: "/plataforma/condominios", label: "Condomínios", icon: Building2 },
     { to: "/plataforma/solicitacoes", label: "Solicitações", icon: Inbox },
-    { to: "/plataforma/perfil", label: "Perfil", icon: UserRound },
+    { to: "/plataforma/uso", label: "Uso", icon: BarChart3 },
+    { to: "/plataforma/configuracoes", label: "Configurações", icon: Settings, menuOnly: true },
+    { to: "/plataforma/perfil", label: "Perfil", icon: UserRound, menuOnly: true },
   ],
 };
 

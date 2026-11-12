@@ -38,3 +38,21 @@ export function conversationWhen(iso: string, now = new Date()) {
   if (days === 1) return `Ontem, ${timeFmt.format(d)}`;
   return fullDateFmt.format(d);
 }
+
+/** Máscara de CNPJ: 00.000.000/0000-00. */
+export function formatCnpj(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 14);
+  return d
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+}
+
+/** Saudação conforme o horário local. */
+export function greeting(date = new Date()) {
+  const h = date.getHours();
+  if (h < 12) return "Bom dia";
+  if (h < 18) return "Boa tarde";
+  return "Boa noite";
+}
